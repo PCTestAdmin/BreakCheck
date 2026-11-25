@@ -2,6 +2,8 @@
 
 ## 0.4.1
 
+- Close regression-test SQLite connections explicitly before temporary directory cleanup on Windows.
+
 - Fix SQLite integer overflow on Windows by storing filesystem device identifiers as lossless prefixed text, compatible with existing snapshots.
 - Add a regression test for unsigned 64-bit device IDs and legacy SQLite column affinity.
 

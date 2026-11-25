@@ -1,5 +1,6 @@
 import os
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 import tempfile
 import unittest
@@ -85,7 +86,7 @@ class SafetyTests(unittest.TestCase):
         self.write('index.html', b'<img src="asset.png">')
         self.index.refresh(self.root)
         # Recreate the v0.4.0 INTEGER-affinity column, with valid legacy rows.
-        with sqlite3.connect(self.db) as db:
+        with closing(sqlite3.connect(self.db)) as db, db:
             db.execute('ALTER TABLE files RENAME TO old_files')
             db.execute('CREATE TABLE files (root TEXT, path TEXT, size INTEGER, mtime INTEGER, dev INTEGER, ino TEXT, links INTEGER, PRIMARY KEY(root,path))')
             db.execute('INSERT INTO files SELECT root,path,size,mtime,42,ino,links FROM old_files')
@@ -99,7 +100,7 @@ class SafetyTests(unittest.TestCase):
             second = self.index.refresh(self.root)
             # No duplicate change events on the second scan: identity is exact.
             self.assertEqual(len(second.history), len(real))
-            with sqlite3.connect(self.db) as db:
+            with closing(sqlite3.connect(self.db)) as db, db:
                 values = db.execute('SELECT dev,typeof(dev) FROM files').fetchall()
                 self.assertEqual(values, [(f'd:{large}', 'text')] * len(real))
             self.assertFalse(second.alerts)
