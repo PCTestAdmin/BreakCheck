@@ -64,6 +64,12 @@ def run_desktop(inspect=None, root=None, self_test=False, background=False):
                 asset.rename(folder / 'moved.png')
                 app.safety.render_snapshot(folder, state.refresh(folder))
                 app.safety.render_duplicates(folder, duplicates(folder))
+                for page in app.tabs.pages:
+                    app.tabs.select(page)
+                    app.update_idletasks()
+                app.tabs.select(app.safety.frame)
+                if app.tabs.select() != str(app.safety.frame) or app.safety.metrics['files'].get() != '3':
+                    raise RuntimeError('Workspace navigation or overview metrics failed')
                 app.update_idletasks()
                 if len(app.safety.alerts.get_children()) != 1 or len(app.safety.dupes.get_children()) != 2:
                     raise RuntimeError('Safety Center self-test failed.')

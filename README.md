@@ -16,11 +16,13 @@ A local file safety assistant. Monitor project changes, detect previously known 
 
 ## How to use
 
-**Monitor a folder:** Select a project folder and click **Start monitoring**. BreakCheck remembers the folder across launches. On Windows, closing the window hides it in the notification area; use the tray menu to quit. Enable **Start with Windows** in the packaged app if desired. New broken links trigger Windows notifications when enabled.
+**Monitor a folder:** In Overview, select a project folder and click **Start monitoring**. BreakCheck remembers the folder across launches. On Windows, closing the window hides it in the notification area; use the tray menu to quit. Enable **Start with Windows** in the packaged app if desired. New broken links trigger Windows notifications when enabled.
+
+**Check a drive:** Select a drive root and click **Check now** for a bounded storage overview and the largest observed files. System folders and inaccessible entries are skipped and listed under Scan coverage. Continuous monitoring requires a project folder. No dependency alerts are calculated for a drive overview.
 
 **Find duplicates:** Click **Find duplicates** to compare file contents and list matching copies by group. Nothing is deleted.
 
-**Before moving or deleting:** Select a target, choose the operation and click **Analyze impact**. Review the results and coverage. Windows setup also offers an optional **Inspect with BreakCheck** Explorer context menu.
+**Before moving or deleting:** Open Impact analysis, select a target, choose the operation and click **Analyze impact**. Review the results and coverage. Windows setup also offers an optional **Inspect with BreakCheck** Explorer context menu.
 
 ## Features
 
@@ -46,7 +48,7 @@ A local file safety assistant. Monitor project changes, detect previously known 
 
 BreakCheck is a static analyzer, not a guarantee that deleting a file is safe. It detects supported, existing references within the selected scan folder. Dynamic links, unsupported formats and references outside that folder may be missed. Files listed as unreferenced may still be in use. Review warnings, scan trusted folders and keep backups.
 
-Monitoring is opt-in and runs while the desktop process or terminal watcher is alive. It uses optional filesystem events with periodic full reconciliation; if events are unavailable it checks every 60 seconds. It does not intercept or prevent Windows file operations, back up files or repair links. It detects changes between snapshots, not every filesystem event; possible moves are inferred from matching metadata. Only previously observed references whose source metadata is unchanged are flagged as broken. The first scan cannot find historical breakage. Scans are capped at 100,000 files; duplicate hashing has a 4 GiB per-run budget. Reported duplicate sizes are logical file sizes, not guaranteed reclaimable disk space.
+Monitoring is opt-in and runs while the desktop process or terminal watcher is alive. It uses optional filesystem events with periodic full reconciliation; if events are unavailable it checks every 60 seconds. It does not intercept or prevent Windows file operations, back up files or repair links. It detects changes between snapshots, not every filesystem event; possible moves are inferred from matching metadata. Only previously observed references whose source metadata is unchanged are flagged as broken. The first scan cannot find historical breakage. Incomplete inventory scans preserve the previous baseline and do not generate deletion alerts. Scans are capped at 100,000 files; duplicate hashing has a 4 GiB per-run budget. Reported duplicate sizes are logical file sizes, not guaranteed reclaimable disk space.
 
 The local SQLite database stores paths, file metadata, observed dependencies and up to 1,000 recent events per monitored folder (no file contents). On Windows it lives at `%LOCALAPPDATA%/BreakCheck/safety.sqlite3`; close the app before removing it to clear history. Choose project folders outside the database directory; scanning a folder that contains this directory is not supported for monitoring. No automatic startup unless explicitly enabled, cloud upload or system-wide monitoring.
 

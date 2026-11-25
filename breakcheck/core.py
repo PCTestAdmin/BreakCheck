@@ -73,6 +73,15 @@ class Report:
             'notice': 'Potential impacts only. No detected references does not prove safety.'}
 
 
+def excluded_system_dir(path: Path) -> bool:
+    """Never traverse OS-managed directories directly under a volume root."""
+    if path.parent != Path(path.anchor):
+        return False
+    names = {'$recycle.bin', 'system volume information', 'windows', 'program files',
+             'program files (x86)', 'programdata', 'recovery', 'config.msi'} if os.name == 'nt' else {'proc', 'sys', 'dev', 'run'}
+    return path.name.casefold() in names
+
+
 def inside(path: Path, parent: Path) -> bool:
     return path == parent or parent in path.parents
 
@@ -199,6 +208,11 @@ def scan(root: Path | str, max_files: int = 100_000) -> Scan:
         files.sort()
         for name in dirs[:]:
             p = Path(directory) / name
+            if excluded_system_dir(p):
+                dirs.remove(name)
+                result.skipped += 1
+                result.warnings.append(f'System folder excluded: {p}')
+                continue
             try:
                 is_reparse = bool(getattr(p.lstat(), 'st_file_attributes', 0) & 0x400)
             except OSError as exc:

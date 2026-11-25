@@ -61,7 +61,9 @@ def validated_root(root):
     path = Path(root).expanduser().resolve(strict=True)
     state = state_path().resolve().parent
     if not path.is_dir() or inside(state, path) or inside(path, state):
-        raise ValueError('Choose an existing folder outside the BreakCheck data directory.')
+        raise ValueError('Choose an existing project folder outside the BreakCheck data directory. Use Check now for a drive-wide storage overview.')
+    if path == Path(path.anchor):
+        raise ValueError('Continuous monitoring requires a project folder, not an entire drive. Use Check now for a storage overview.')
     return path
 
 
@@ -121,7 +123,7 @@ class Wakeup:
 def snapshot_payload(root, snapshot, new):
     return {'root': str(root), 'files': snapshot.files, 'bytes': snapshot.bytes,
             'alerts': snapshot.alerts, 'new_alerts': sorted(new),
-            'history': snapshot.history, 'warnings': snapshot.warnings}
+            'history': snapshot.history, 'warnings': snapshot.warnings, 'complete': snapshot.complete, 'skipped': snapshot.skipped, 'largest': snapshot.largest}
 
 
 def run_watch(roots, interval=60, once=False, use_events=True, json_output=False,
@@ -142,7 +144,8 @@ def run_watch(roots, interval=60, once=False, use_events=True, json_output=False
         elif 'error' in payload:
             print(f'{payload["root"]}: {payload["error"]}', file=sys.stderr, flush=True)
         else:
-            print(f'{payload["root"]}: {payload["files"]} files; {len(payload["alerts"])} broken links', flush=True)
+            status = f'{len(payload["alerts"])} broken links' if payload['complete'] else 'partial coverage; alerts unavailable'
+            print(f'{payload["root"]}: {payload["files"]} files; {status}', flush=True)
             for source, target in payload['new_alerts']:
                 print(f'  ALERT: {source} -> {target}', flush=True)
             for warning in payload['warnings']:
@@ -165,8 +168,11 @@ def run_watch(roots, interval=60, once=False, use_events=True, json_output=False
                 try:
                     snapshot = index.refresh(root)
                     alerts = set(snapshot.alerts)
-                    output(snapshot_payload(root, snapshot, alerts - previous.get(root, set())))
-                    previous[root] = alerts
+                    output(snapshot_payload(root, snapshot, alerts - previous.get(root, set()) if snapshot.complete else set()))
+                    if snapshot.complete:
+                        previous[root] = alerts
+                    else:
+                        failed = True
                 except (OSError, ValueError, RuntimeError, sqlite3.Error) as exc:
                     output({'root': str(root), 'error': str(exc)})
                     failed = True
@@ -209,15 +215,18 @@ def dispatch(args):
             print(json.dumps(asdict(prefs)))
             return 0
         if args.command == 'duplicates':
-            groups, skipped = duplicates(args.folder)
+            warnings = []
+            groups, skipped = duplicates(args.folder, coverage=warnings)
             payload = {'groups': [{'size': size, 'files': paths} for size, paths in groups],
-                       'extra_logical_bytes': sum(size*(len(paths)-1) for size,paths in groups), 'skipped': skipped}
+                       'extra_logical_bytes': sum(size*(len(paths)-1) for size,paths in groups), 'skipped': skipped, 'warnings': warnings}
             if args.json:
                 print(json.dumps(payload))
             else:
                 print(f'{len(groups)} groups; {payload["extra_logical_bytes"]} additional logical bytes; {skipped} skipped')
                 for size, paths in groups:
                     print(f'{size} bytes: ' + ' | '.join(paths))
+                for warning in warnings:
+                    print(f'WARNING: {warning}')
             return 0
         roots = args.folders
         if not roots:

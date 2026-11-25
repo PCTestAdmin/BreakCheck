@@ -64,6 +64,51 @@ class SafetyTests(unittest.TestCase):
         target.unlink()
         self.assertIn(('Removed','asset.png'), [e[1:3] for e in self.index.refresh(self.root).history])
 
+    def test_permission_skip_preserves_baseline(self):
+        from breakcheck.safety import inventory
+        target = self.write('private/asset.png', b'demo')
+        self.write('index.html', b'<img src="private/asset.png">')
+        self.index.refresh(self.root)
+        original = os.walk
+        def denied(root, *args, **kwargs):
+            if Path(root) != self.root:
+                yield from original(root, *args, **kwargs)
+                return
+            yield str(self.root), ['private'], ['index.html']
+            kwargs['onerror'](PermissionError(13, 'Access denied', str(self.root / 'private')))
+        with patch('breakcheck.safety.os.walk', side_effect=denied):
+            result = self.index.refresh(self.root)
+            self.assertFalse(result.complete)
+            self.assertEqual(result.alerts, [])
+            self.assertEqual(result.history, [])
+            self.assertTrue(any('Access skipped' in w for w in result.warnings))
+        target.unlink()
+        self.assertEqual(self.index.refresh(self.root).alerts, [('index.html','private/asset.png')])
+
+    def test_file_limit_returns_partial_inventory(self):
+        from breakcheck.safety import inventory
+        self.write('a.bin', b'a')
+        self.write('b.bin', b'b')
+        result = inventory(self.root, max_files=1)
+        self.assertFalse(result.complete)
+        self.assertEqual(len(result), 1)
+        self.assertTrue(result.warnings)
+
+    def test_preview_largest_files_without_creating_database(self):
+        from breakcheck.safety import preview
+        self.write('small.txt', b'a')
+        self.write('big.txt', b'abcdef')
+        result = preview(self.root, self.db)
+        self.assertFalse(result.complete)
+        self.assertEqual(result.largest, [('big.txt', 6), ('small.txt', 1)])
+        self.assertFalse(self.db.exists())
+
+    def test_missing_target_access_denied_is_not_deletion(self):
+        from breakcheck.safety import missing_target
+        with patch.object(Path, 'lstat', side_effect=PermissionError('denied')):
+            self.assertFalse(missing_target(self.root / 'private'))
+        self.assertTrue(missing_target(self.root / 'missing'))
+
     def test_duplicate_content_not_name_or_size(self):
         self.write('a/one.bin', b'abcd')
         self.write('b/two.bin', b'abcd')
@@ -108,3 +153,6 @@ class SafetyTests(unittest.TestCase):
     def test_database_must_be_outside_folder(self):
         with self.assertRaises(ValueError):
             SafetyIndex(self.root / 'db.sqlite3').refresh(self.root)
+        overview = SafetyIndex(self.root / 'state' / 'db.sqlite3').refresh(self.root)
+        self.assertFalse(overview.complete)
+        self.assertFalse((self.root / 'state' / 'db.sqlite3').exists())

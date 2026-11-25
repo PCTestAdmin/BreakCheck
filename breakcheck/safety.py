@@ -8,8 +8,9 @@ from pathlib import Path
 import sqlite3
 import stat
 import time
-from dataclasses import dataclass
-from .core import scan, inside, SKIP_DIRS
+from dataclasses import dataclass, field
+from heapq import nlargest
+from .core import scan, inside, SKIP_DIRS, excluded_system_dir
 
 MAX_FILES = 100_000
 MAX_HASH_BYTES = 4 * 1024**3
@@ -39,28 +40,65 @@ def stamp(info):
     return info.st_size, info.st_mtime_ns, info.st_dev, info.st_ino, info.st_nlink
 
 
+class Inventory(dict):
+    def __init__(self):
+        super().__init__()
+        self.warnings = []
+        self.skipped = 0
+        self.complete = True
+
+    def warn(self, message):
+        self.complete = False
+        self.skipped += 1
+        if len(self.warnings) < 100:
+            self.warnings.append(str(message))
+
+
 def inventory(root, excluded=None, max_files=MAX_FILES):
     root = Path(root).resolve(strict=True)
-    if not root.is_dir():
-        raise ValueError('Choose a folder to monitor.')
-    rows = {}
+    if not root.is_dir() or max_files < 1:
+        raise ValueError('Choose a folder and a positive file limit.')
+    excluded = Path(excluded).resolve() if excluded is not None else None
+    rows = Inventory()
+
     def fail(error):
-        raise OSError(f'Incomplete inventory: {error}')
+        if error.filename and Path(error.filename) == root:
+            raise error
+        rows.warn(f'Access skipped: {error}')
+
     for directory, dirs, files in os.walk(root, followlinks=False, onerror=fail):
         folder = Path(directory)
+        dirs.sort()
+        files.sort()
         for name in dirs[:]:
             p = folder / name
-            info = p.lstat()
-            if (name in SKIP_DIRS or p == excluded or stat.S_ISLNK(info.st_mode)
-                    or getattr(info, 'st_file_attributes', 0) & 0x400):
+            if name in SKIP_DIRS:
+                dirs.remove(name)
+                continue
+            if p == excluded or excluded_system_dir(p):
+                dirs.remove(name)
+                rows.warn(f'Excluded protected or application folder: {p}')
+                continue
+            try:
+                info = p.lstat()
+            except OSError as exc:
+                dirs.remove(name)
+                fail(exc)
+                continue
+            if stat.S_ISLNK(info.st_mode) or getattr(info, 'st_file_attributes', 0) & 0x400:
                 dirs.remove(name)
         for name in files:
             path = folder / name
-            info = path.lstat()
+            try:
+                info = path.lstat()
+            except OSError as exc:
+                fail(exc)
+                continue
             if not stat.S_ISREG(info.st_mode) or getattr(info, 'st_file_attributes', 0) & 0x400:
                 continue
             if len(rows) >= max_files:
-                raise ValueError('File limit reached; choose a smaller folder. Previous snapshot preserved.')
+                rows.warn(f'File limit reached ({max_files:,}); results are partial. Choose a smaller folder.')
+                return rows
             rows[path.relative_to(root).as_posix()] = stamp(info)
     return rows
 
@@ -72,6 +110,34 @@ class Snapshot:
     history: list
     alerts: list
     warnings: list
+    complete: bool = True
+    skipped: int = 0
+    largest: list = field(default_factory=list)
+
+
+def largest_files(rows):
+    return [(path, meta[0]) for path, meta in nlargest(200, rows.items(), key=lambda item: (item[1][0], item[0]))]
+
+
+def preview(root, db=None):
+    root = Path(root).expanduser().resolve(strict=True)
+    data = Path(db).resolve().parent if db is not None else state_path().resolve().parent
+    if inside(root, data):
+        raise ValueError('Choose a folder outside BreakCheck application data.')
+    rows = inventory(root, excluded=data)
+    return Snapshot(len(rows), sum(s[0] for s in rows.values()), [], [],
+                    ['Storage overview only; no dependency baseline or alerts were calculated.'] + rows.warnings,
+                    False, rows.skipped, largest_files(rows))
+
+
+def missing_target(path):
+    try:
+        path.lstat()
+        return False
+    except (FileNotFoundError, NotADirectoryError):
+        return True
+    except OSError:
+        return False  # Unreadable is not evidence of deletion.
 
 
 class SafetyIndex:
@@ -81,16 +147,24 @@ class SafetyIndex:
     def refresh(self, root):
         root = Path(root).resolve(strict=True)
         db_dir = self.db.resolve().parent
-        if inside(root, db_dir) or inside(db_dir, root):
-            raise ValueError('Choose a project folder that does not contain the BreakCheck data directory.')
+        if inside(root, db_dir):
+            raise ValueError('Choose a project folder outside BreakCheck application data.')
+        if root == Path(root.anchor) or inside(db_dir, root):
+            return preview(root, self.db)
         started = time.time_ns()
         current = inventory(root)
+        if not getattr(current, 'complete', True):
+            return Snapshot(len(current), sum(s[0] for s in current.values()), [], [],
+                            current.warnings + ['Incomplete scan; previous monitoring baseline preserved.'], False, current.skipped, largest_files(current))
         index = scan(root, MAX_FILES)
         if any('File limit reached' in w for w in index.warnings):
-            raise ValueError('Dependency scan incomplete; choose a smaller folder.')
+            return Snapshot(len(current), sum(s[0] for s in current.values()), [], [],
+                            index.warnings + ['Previous monitoring baseline preserved.'], False, index.skipped, largest_files(current))
         # Recheck metadata before committing: do not infer removals from an unstable walk.
-        if inventory(root) != current:
-            raise RuntimeError('Folder changed during scan; retry to obtain a consistent snapshot.')
+        verified = inventory(root)
+        if not getattr(verified, 'complete', True) or verified != current:
+            return Snapshot(len(current), sum(s[0] for s in current.values()), [], [],
+                            ['Folder changed or became inaccessible during scan; previous baseline preserved.'], False, getattr(verified, 'skipped', 0), largest_files(current))
         refs = {(r.source.relative_to(root).as_posix(), r.target.relative_to(root).as_posix())
                 for r in index.references if r.source.relative_to(root).as_posix() in current}
         self.db.parent.mkdir(parents=True, exist_ok=True)
@@ -111,7 +185,7 @@ class SafetyIndex:
             # and its target is genuinely missing. Edited sources must be re-parsed.
             alerts = []
             for source,target in sorted(old_refs - refs):
-                if source in current and current[source] == old.get(source) and not os.path.lexists(root / target):
+                if source in current and current[source] == old.get(source) and missing_target(root / target):
                     refs.add((source,target))
                     alerts.append((source,target))
             events = []
@@ -141,21 +215,23 @@ class SafetyIndex:
             conn.execute('INSERT OR REPLACE INTO roots VALUES(?,?)', (key,started))
             history = list(conn.execute('SELECT time,action,path,detail FROM history WHERE root=? ORDER BY id DESC LIMIT 200', (key,)))
             conn.commit()
-            return Snapshot(len(current),sum(s[0] for s in current.values()),history,alerts,index.warnings)
+            return Snapshot(len(current),sum(s[0] for s in current.values()),history,alerts,index.warnings, largest=largest_files(current))
         finally:
             conn.close()
 
 
-def duplicates(root, budget=MAX_HASH_BYTES):
+def duplicates(root, budget=MAX_HASH_BYTES, coverage=None):
     """Hash size-matched regular files; exclude hard links and changed files."""
     root = Path(root).resolve(strict=True)
-    rows = inventory(root)
+    rows = inventory(root, excluded=state_path().resolve().parent)
+    if coverage is not None:
+        coverage.extend(rows.warnings)
     sizes = defaultdict(list)
     for p,s in rows.items():
         if s[0] > 0 and s[4] == 1:
             sizes[s[0]].append(p)
     groups = defaultdict(list)
-    skipped = 0
+    skipped = rows.skipped
     remaining = budget
     for size, paths in sorted(sizes.items()):
         if len(paths) < 2:

@@ -24,37 +24,66 @@ class SafetyCenter:
         self.prefs = Preferences()
         self.events = queue.Queue()
         self.display_root = None
-        self.frame = ttk.Frame(tabs, padding=12)
-        tabs.insert(0, self.frame, text='Safety Center')
+        self.frame = ttk.Frame(tabs)
+        tabs.insert(0, self.frame, text='Overview')
         tabs.select(self.frame)
         self.frame.columnconfigure(0, weight=1)
-        self.frame.rowconfigure(4, weight=1)
-        ttk.Label(self.frame, text='Monitor a project folder', font=('TkDefaultFont', 13, 'bold')).grid(row=0, column=0, sticky='w')
-        ttk.Label(self.frame, text='Monitor a saved folder using file events when available, with a 60-second fallback. Windows can keep running in the notification area. Alerts are after-the-fact.', wraplength=850).grid(row=1, column=0, sticky='w', pady=4)
-        controls = ttk.Frame(self.frame)
-        controls.grid(row=2, column=0, sticky='ew', pady=6)
+        self.frame.rowconfigure(5, weight=1)
+        self.monitor_path = tk.StringVar()
+        self.state = tk.StringVar(value='Not monitoring')
+        heading = ttk.Frame(self.frame)
+        heading.grid(row=0,column=0,sticky='ew')
+        ttk.Label(heading,text='Safety overview',style='PageTitle.TLabel').pack(side='left')
+        ttk.Label(heading,textvariable=self.state,style='Muted.TLabel').pack(side='right',pady=8)
+        ttk.Label(self.frame, text='Monitor a project, inspect recent changes or find duplicate files.', style='Muted.TLabel').grid(row=1,column=0,sticky='w',pady=(3,14))
+        metrics = ttk.Frame(self.frame)
+        metrics.grid(row=2,column=0,sticky='ew',pady=(0,14))
+        self.metrics = {}
+        for col, (key, name) in enumerate([('files','Files observed'),('size','Logical size'),('alerts','Broken links'),('changes','Recent changes')]):
+            metrics.columnconfigure(col,weight=1,uniform='metrics')
+            card = ttk.Frame(metrics,style='Card.TFrame',padding=(12,10))
+            card.grid(row=0,column=col,sticky='nsew',padx=(0,8) if col<3 else 0)
+            ttk.Label(card,text=name,style='CardCaption.TLabel').pack(anchor='w')
+            value = tk.StringVar(value='—')
+            ttk.Label(card,textvariable=value,style='Metric.TLabel').pack(anchor='w',pady=(4,0))
+            self.metrics[key] = value
+        controls = ttk.Frame(self.frame,style='Card.TFrame',padding=12)
+        controls.grid(row=3,column=0,sticky='ew')
+        controls.columnconfigure(0,weight=1)
+        ttk.Label(controls,text='Folder to monitor or scan',style='Card.TLabel').grid(row=0,column=0,sticky='w',pady=(0,5))
+        self.folder_entry = ttk.Entry(controls,textvariable=self.monitor_path)
+        self.folder_entry.grid(row=1,column=0,sticky='ew',padx=(0,8))
+        self.browse = ttk.Button(controls,text='Browse',command=self.browse_folder)
+        self.browse.grid(row=1,column=1,sticky='ew')
+        actions = ttk.Frame(controls,style='Card.TFrame')
+        actions.grid(row=2,column=0,columnspan=2,sticky='ew',pady=(10,0))
         self.buttons = {}
-        for key, title, callback in [('start','Start monitoring',self.start),('stop','Stop',self.stop),('check','Check now',self.check),('dupes','Find duplicates',self.find)]:
-            button = ttk.Button(controls, text=title, command=callback)
-            button.pack(side='left', padx=(0, 6))
-            self.buttons[key] = button
+        for key,title,callback in [('start','Start monitoring',self.start),('stop','Stop',self.stop),('check','Check now',self.check),('dupes','Find duplicates',self.find)]:
+            button = ttk.Button(actions,text=title,command=callback,style='Accent.TButton' if key=='start' else 'TButton')
+            button.pack(side='left',padx=(0,6))
+            self.buttons[key]=button
+        self.status = tk.StringVar(value='Choose a project folder to begin. Whole-drive checks show a limited storage overview.')
+        ttk.Label(self.frame,textvariable=self.status,style='Muted.TLabel',wraplength=720).grid(row=4,column=0,sticky='ew',pady=10)
+        panes = ttk.Notebook(self.frame)
+        self.panes = panes
+        panes.grid(row=5,column=0,sticky='nsew')
+        self.alerts = self.table(panes,'Broken links',('Dependent file','Missing target','Possible new location'))
+        self.history = self.table(panes,'Activity',('Time','Change','Path','Details'))
+        self.dupes = self.table(panes,'Duplicates',('Group','File','Size'))
+        self.largest = self.table(panes,'Largest files',('File','Logical size'))
+        self.warnings = self.table(panes,'Scan coverage',('Details',))
+        settings = ttk.Frame(self.frame)
+        settings.grid(row=6,column=0,sticky='ew',pady=(10,0))
         self.notifications = tk.BooleanVar(value=True)
-        ttk.Checkbutton(controls, text='Notifications', variable=self.notifications, command=self.update_notifications).pack(side='left', padx=6)
+        ttk.Checkbutton(settings,text='Desktop notifications',variable=self.notifications,command=self.update_notifications).pack(side='left')
         self.autostart = tk.BooleanVar(value=False)
         if not self_test and startup_supported():
             try:
                 self.autostart.set(startup_enabled())
             except OSError:
                 pass
-            ttk.Checkbutton(controls, text='Start with Windows', variable=self.autostart, command=self.update_startup).pack(side='left', padx=6)
-        self.status = tk.StringVar(value='Choose a scan folder above, then start monitoring or check now.')
-        ttk.Label(self.frame, textvariable=self.status, wraplength=850).grid(row=3, column=0, sticky='w', pady=5)
-        panes = ttk.Notebook(self.frame)
-        self.panes = panes
-        panes.grid(row=4, column=0, sticky='nsew')
-        self.alerts = self.table(panes, 'Broken links', ('Dependent file','Missing target','Possible new location'))
-        self.history = self.table(panes, 'File activity', ('Time','Change','Path','Details'))
-        self.dupes = self.table(panes, 'Duplicates', ('Group','File','Size'))
+            ttk.Checkbutton(settings,text='Start with Windows',variable=self.autostart,command=self.update_startup).pack(side='left',padx=10)
+        ttk.Label(settings,text='Read-only • alerts after changes',style='Muted.TLabel').pack(side='right')
         self.controls()
         if not self_test:
             app.after(150, self.poll)
@@ -67,7 +96,7 @@ class SafetyCenter:
         tree = ttk.Treeview(frame, columns=columns, show='headings')
         for col in columns:
             tree.heading(col, text=col)
-            tree.column(col, width=180 if col not in ('Path','File','Dependent file','Missing target','Details') else 320)
+            tree.column(col, width=140 if col in ('Group','Time','Change','Size') else (670 if len(columns)==1 else 220), minwidth=65)
         tree.grid(row=0, column=0, sticky='nsew')
         y = ttk.Scrollbar(frame, command=tree.yview)
         y.grid(row=0, column=1, sticky='ns')
@@ -77,16 +106,24 @@ class SafetyCenter:
         return tree
 
     def controls(self):
+        locked = self.busy or self.active_root is not None
+        self.folder_entry.configure(state='disabled' if locked else 'normal')
+        self.browse.configure(state='disabled' if locked else 'normal')
         for key, button in self.buttons.items():
             disabled = (key != 'stop' and self.busy) or (key == 'start' and self.active_root is not None) or (key == 'stop' and self.active_root is None)
             button.configure(state='disabled' if disabled else 'normal')
 
+    def browse_folder(self):
+        path = filedialog.askdirectory(parent=self.app)
+        if path:
+            self.monitor_path.set(path)
+
     def folder(self):
         if self.active_root is not None:
             return self.active_root
-        path = self.app.root_path.get().strip() or filedialog.askdirectory(parent=self.app)
+        path = self.monitor_path.get().strip() or self.app.root_path.get().strip() or filedialog.askdirectory(parent=self.app)
         if path:
-            self.app.root_path.set(path)
+            self.monitor_path.set(path)
             return Path(path).expanduser().absolute()
         return None
 
@@ -119,7 +156,9 @@ class SafetyCenter:
         self.previous_alerts = set()
         self.wakeup = Wakeup(root)
         self.last_scan = float('-inf')
-        if not self.app.target.get():
+        self.monitor_path.set(str(root))
+        self.state.set('Monitoring active')
+        if not self.app.root_path.get():
             self.app.root_path.set(str(root))
         self.run(root, 'snapshot')
 
@@ -151,6 +190,7 @@ class SafetyCenter:
             return
         self.shutdown()
         self.controls()
+        self.state.set('Not monitoring')
         self.status.set('Monitoring stopped. An in-progress check will finish.')
 
     def check(self):
@@ -169,16 +209,22 @@ class SafetyCenter:
         if kind == 'snapshot' and self.wakeup is not None:
             self.wakeup.dirty.clear()
         if root != self.display_root:
-            for tree in (self.alerts, self.history, self.dupes):
+            for value in self.metrics.values():
+                value.set('—')
+            for tree in (self.alerts, self.history, self.dupes, self.largest, self.warnings):
                 self.fill(tree, [])
-            self.tabs.tab(self.frame, text='Safety Center')
+            self.tabs.tab(self.frame, text='Overview')
             self.display_root = root
         self.busy = True
         self.controls()
         self.status.set(f'Checking {root}…')
         def worker():
             try:
-                value = SafetyIndex().refresh(root) if kind == 'snapshot' else duplicates(root)
+                if kind == 'snapshot':
+                    value = SafetyIndex().refresh(root)
+                else:
+                    warnings = []
+                    value = (*duplicates(root, coverage=warnings), warnings)
                 self.events.put((root, kind, value))
             except Exception as exc:
                 self.events.put((root, 'error', str(exc)))
@@ -195,7 +241,7 @@ class SafetyCenter:
             if kind == 'snapshot':
                 self.render_snapshot(root, value)
                 self.last_scan = time.monotonic()
-                if self.active_root == root:
+                if self.active_root == root and value.complete:
                     alerts = set(value.alerts)
                     new = alerts - self.previous_alerts
                     self.previous_alerts = alerts
@@ -204,7 +250,8 @@ class SafetyCenter:
             elif kind == 'duplicates':
                 self.render_duplicates(root, value)
             else:
-                self.status.set(f'{root}: check failed — {value}')
+                self.state.set('Check failed')
+                self.status.set(f'{root}: {value}')
                 self.last_scan = time.monotonic()
         if not self.busy and self.active_root is not None and self.wakeup is not None and self.wakeup.due(self.last_scan, time.monotonic()):
             self.run(self.active_root, 'snapshot')
@@ -222,15 +269,34 @@ class SafetyCenter:
         for _, action, old, new in result.history:
             if action == 'Possible move':
                 moves.setdefault(old, new)
+        self.metrics['files'].set(f'{result.files:,}')
+        self.metrics['size'].set(f'{result.bytes / 1073741824:,.2f} GiB' if result.bytes >= 1073741824 else f'{result.bytes / 1048576:,.1f} MiB')
+        self.metrics['alerts'].set(str(len(result.alerts)) if result.complete else '—')
+        self.metrics['changes'].set(str(len(result.history)) if result.complete else '—')
         self.fill(self.alerts, [(source, target, moves.get(target, '')) for source, target in result.alerts[:1000]])
         self.fill(self.history, [(datetime.fromtimestamp(t).strftime('%Y-%m-%d %H:%M:%S'),a,p,d) for t,a,p,d in result.history])
-        self.tabs.tab(self.frame, text=f'Safety Center ({len(result.alerts)} alerts)' if result.alerts else 'Safety Center')
-        mode = f'Monitoring ({self.wakeup.backend})' if self.active_root is not None and self.wakeup else 'Snapshot'
-        self.status.set(f'{mode}: {root} | {result.files:,} files | {result.bytes / 1048576:,.1f} MiB | {len(result.alerts)} previously known broken links | {len(result.warnings)} scan warnings')
+        self.fill(self.largest, [(path, f'{size / 1048576:,.2f} MiB') for path,size in result.largest])
+        self.fill(self.warnings, [(warning,) for warning in result.warnings[:100]])
+        self.tabs.tab(self.frame, text=f'Overview ({len(result.alerts)})' if result.complete and result.alerts else 'Overview')
+        if result.complete:
+            mode = f'Monitoring ({self.wakeup.backend})' if self.active_root is not None and self.wakeup else 'Snapshot complete'
+            self.state.set(mode)
+            self.status.set(f'{root}  •  {len(result.warnings)} scan warnings  •  Last checked {datetime.now():%H:%M:%S}')
+        else:
+            self.state.set('Limited coverage')
+            self.status.set(f'{root}  •  Partial results; alerts unavailable. See Scan coverage for details.')
+            if self.active_root is None:
+                self.panes.select(self.largest.master)
+            else:
+                self.panes.select(self.warnings.master)
 
     def render_duplicates(self, root, result):
-        groups, skipped = result
+        groups, skipped = result[:2]
+        warnings = result[2] if len(result) > 2 else []
         self.panes.select(self.dupes.master)
         self.fill(self.dupes, [(i, p, f'{size:,}') for i,(size,paths) in enumerate(groups,1) for p in paths][:2000])
+        self.fill(self.warnings, [(warning,) for warning in warnings])
         extra = sum(size*(len(paths)-1) for size,paths in groups)
-        self.status.set(f'{root}: {len(groups)} duplicate groups | {extra / 1048576:,.1f} MiB additional copies (logical size) | {skipped} candidates skipped. Review dependencies before removing anything.')
+        self.status.set(f'{len(groups)} duplicate groups  •  {extra / 1048576:,.1f} MiB additional logical size  •  {skipped} skipped. Review before deleting.')
+        if warnings:
+            self.state.set('Limited duplicate coverage')

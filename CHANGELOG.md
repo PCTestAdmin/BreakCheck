@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0
+
+- Redesigned desktop workspace with sidebar navigation, overview metrics, separated impact analysis, and a refined light/dark appearance.
+- Bounded whole-drive storage overview and largest-file list without traversing protected system directories.
+- Report inaccessible folders and scan limits as partial coverage instead of aborting; preserve the previous monitoring baseline and suppress unsupported alerts.
+- Add regression tests for permission-denied traversal, file limits, largest-file previews and inaccessible link targets; expand GUI smoke tests for the new navigation.
+
 ## 0.5.0
 
 - Windows notification-area integration, optional per-user startup and new broken-link notifications.
