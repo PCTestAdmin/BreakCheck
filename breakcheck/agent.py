@@ -1,0 +1,237 @@
+"""Headless monitoring, durable preferences and optional event-driven wakeups."""
+from __future__ import annotations
+
+import argparse
+from dataclasses import asdict, dataclass
+import json
+import os
+from pathlib import Path
+import signal
+import sqlite3
+import sys
+import tempfile
+import threading
+import time
+
+from .core import SKIP_DIRS, inside
+from .safety import SafetyIndex, state_path, duplicates
+
+
+@dataclass
+class Preferences:
+    root: str = ''
+    notifications: bool = True
+
+
+def settings_path():
+    return state_path().parent / 'preferences.json'
+
+
+def read_preferences(path=None):
+    path = Path(path) if path is not None else settings_path()
+    try:
+        data = json.loads(path.read_text(encoding='utf-8'))
+    except FileNotFoundError:
+        return Preferences()
+    if not isinstance(data, dict) or not isinstance(data.get('root', ''), str) or not isinstance(data.get('notifications', True), bool):
+        raise ValueError('Invalid BreakCheck preferences.')
+    return Preferences(data.get('root', ''), data.get('notifications', True))
+
+
+def write_json(path, data):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    name = None
+    try:
+        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=path.parent, delete=False) as stream:
+            name = stream.name
+            json.dump(data, stream, ensure_ascii=True)
+            stream.write('\n')
+        os.replace(name, path)
+    finally:
+        if name is not None and os.path.exists(name):
+            os.unlink(name)
+
+
+def save_preferences(prefs, path=None):
+    write_json(settings_path() if path is None else path, asdict(prefs))
+
+
+def validated_root(root):
+    path = Path(root).expanduser().resolve(strict=True)
+    state = state_path().resolve().parent
+    if not path.is_dir() or inside(state, path) or inside(path, state):
+        raise ValueError('Choose an existing folder outside the BreakCheck data directory.')
+    return path
+
+
+class Wakeup:
+    """Events are hints; periodically reconcile even if the OS misses events."""
+    def __init__(self, root, interval=60, use_events=True):
+        self.root = Path(root)
+        self.interval = interval
+        self.dirty = threading.Event()
+        self.observer = None
+        self.backend = 'polling'
+        if use_events:
+            self.start_events()
+
+    def mark(self, event_type, path):
+        if event_type not in {'created', 'deleted', 'modified', 'moved'}:
+            return
+        try:
+            parts = Path(path).relative_to(self.root).parts
+        except ValueError:
+            return
+        if not any(part in SKIP_DIRS for part in parts):
+            self.dirty.set()
+
+    def start_events(self):
+        observer = None
+        try:
+            from watchdog.events import FileSystemEventHandler
+            from watchdog.observers import Observer
+            owner = self
+            class Handler(FileSystemEventHandler):
+                def on_any_event(self, event):
+                    owner.mark(event.event_type, event.src_path)
+                    if getattr(event, 'dest_path', ''):
+                        owner.mark(event.event_type, event.dest_path)
+            observer = Observer()
+            observer.schedule(Handler(), str(self.root), recursive=True)
+            observer.start()
+            self.observer = observer
+            self.backend = 'events + reconciliation'
+        except (ImportError, OSError, RuntimeError):
+            if observer is not None and observer.is_alive():
+                observer.stop()
+                observer.join(timeout=3)
+
+    def close(self):
+        if self.observer is not None:
+            self.observer.stop()
+            self.observer.join(timeout=3)
+            self.observer = None
+
+    def due(self, last, now):
+        # Avoid feedback loops on platforms that emit directory modifications.
+        return now - last >= self.interval or (self.dirty.is_set() and now - last >= 2)
+
+
+def snapshot_payload(root, snapshot, new):
+    return {'root': str(root), 'files': snapshot.files, 'bytes': snapshot.bytes,
+            'alerts': snapshot.alerts, 'new_alerts': sorted(new),
+            'history': snapshot.history, 'warnings': snapshot.warnings}
+
+
+def run_watch(roots, interval=60, once=False, use_events=True, json_output=False,
+              stop=None, emit=None, index=None):
+    """Run in the foreground (suitable for SSH, systemd, or a supervisor)."""
+    stop = stop if stop is not None else threading.Event()
+    index = index if index is not None else SafetyIndex()
+    roots = list(dict.fromkeys(validated_root(root) for root in roots))
+    if not roots:
+        raise ValueError('Provide at least one folder.')
+    if not 2 <= interval <= 86400:
+        raise ValueError('Interval must be between 2 and 86400 seconds.')
+    def output(payload):
+        if emit is not None:
+            emit(payload)
+        elif json_output:
+            print(json.dumps(payload, ensure_ascii=True), flush=True)
+        elif 'error' in payload:
+            print(f'{payload["root"]}: {payload["error"]}', file=sys.stderr, flush=True)
+        else:
+            print(f'{payload["root"]}: {payload["files"]} files; {len(payload["alerts"])} broken links', flush=True)
+            for source, target in payload['new_alerts']:
+                print(f'  ALERT: {source} -> {target}', flush=True)
+            for warning in payload['warnings']:
+                print(f'  WARNING: {warning}', flush=True)
+    watches = {}
+    last = {}
+    previous = {}
+    failed = False
+    try:
+        for root in roots:
+            watches[root] = Wakeup(root, interval, use_events and not once)
+            last[root] = float('-inf')
+        while not stop.is_set():
+            for root, wake in watches.items():
+                if stop.is_set():
+                    break
+                if not wake.due(last[root], time.monotonic()):
+                    continue
+                wake.dirty.clear()
+                try:
+                    snapshot = index.refresh(root)
+                    alerts = set(snapshot.alerts)
+                    output(snapshot_payload(root, snapshot, alerts - previous.get(root, set())))
+                    previous[root] = alerts
+                except (OSError, ValueError, RuntimeError, sqlite3.Error) as exc:
+                    output({'root': str(root), 'error': str(exc)})
+                    failed = True
+                last[root] = time.monotonic()
+            if once:
+                break
+            stop.wait(0.5)
+    finally:
+        for wake in watches.values():
+            wake.close()
+    return int(failed) if once else 0
+
+
+def add_commands(sub):
+    watch = sub.add_parser('watch', help='Monitor folders without a GUI')
+    watch.add_argument('folders', nargs='*', type=Path)
+    watch.add_argument('--interval', type=int, default=60, help='Full reconciliation interval in seconds (2-86400)')
+    watch.add_argument('--once', action='store_true', help='Take one snapshot and exit')
+    watch.add_argument('--poll', action='store_true', help='Do not use optional OS file events')
+    watch.add_argument('--json', action='store_true', help='Emit JSON lines')
+    dup = sub.add_parser('duplicates', help='Find identical file contents without a GUI')
+    dup.add_argument('folder', type=Path)
+    dup.add_argument('--json', action='store_true')
+    config = sub.add_parser('monitor-config', help='Show, set or clear the remembered monitor folder')
+    group = config.add_mutually_exclusive_group()
+    group.add_argument('--folder', type=Path)
+    group.add_argument('--clear', action='store_true')
+
+
+def dispatch(args):
+    try:
+        if args.command == 'monitor-config':
+            prefs = read_preferences()
+            if args.folder is not None:
+                prefs.root = str(validated_root(args.folder))
+                save_preferences(prefs)
+            elif args.clear:
+                prefs.root = ''
+                save_preferences(prefs)
+            print(json.dumps(asdict(prefs)))
+            return 0
+        if args.command == 'duplicates':
+            groups, skipped = duplicates(args.folder)
+            payload = {'groups': [{'size': size, 'files': paths} for size, paths in groups],
+                       'extra_logical_bytes': sum(size*(len(paths)-1) for size,paths in groups), 'skipped': skipped}
+            if args.json:
+                print(json.dumps(payload))
+            else:
+                print(f'{len(groups)} groups; {payload["extra_logical_bytes"]} additional logical bytes; {skipped} skipped')
+                for size, paths in groups:
+                    print(f'{size} bytes: ' + ' | '.join(paths))
+            return 0
+        roots = args.folders
+        if not roots:
+            saved = read_preferences().root
+            roots = [saved] if saved else []
+        stop = threading.Event()
+        old = {}
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            old[sig] = signal.signal(sig, lambda *_: stop.set())
+        try:
+            return run_watch(roots, args.interval, args.once, not args.poll, args.json, stop)
+        finally:
+            for sig, handler in old.items():
+                signal.signal(sig, handler)
+    except (OSError, ValueError, RuntimeError, sqlite3.Error) as exc:
+        print(f'BreakCheck: {exc}', file=sys.stderr)
+        return 1

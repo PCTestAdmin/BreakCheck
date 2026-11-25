@@ -3,11 +3,14 @@ from __future__ import annotations
 
 import queue
 import threading
+import time
 from datetime import datetime
 from pathlib import Path
 import tkinter as tk
-from tkinter import ttk, filedialog
+from tkinter import ttk, filedialog, messagebox
 from .safety import SafetyIndex, duplicates
+from .agent import Preferences, read_preferences, save_preferences, validated_root, Wakeup
+from .tray import startup_supported, startup_enabled, set_startup
 
 
 class SafetyCenter:
@@ -15,7 +18,10 @@ class SafetyCenter:
         self.app, self.tabs = app, tabs
         self.active_root = None
         self.busy = False
-        self.due = None
+        self.wakeup = None
+        self.last_scan = float('-inf')
+        self.previous_alerts = set()
+        self.prefs = Preferences()
         self.events = queue.Queue()
         self.display_root = None
         self.frame = ttk.Frame(tabs, padding=12)
@@ -24,7 +30,7 @@ class SafetyCenter:
         self.frame.columnconfigure(0, weight=1)
         self.frame.rowconfigure(4, weight=1)
         ttk.Label(self.frame, text='Monitor a project folder', font=('TkDefaultFont', 13, 'bold')).grid(row=0, column=0, sticky='w')
-        ttk.Label(self.frame, text='Watch changes every 60 seconds while BreakCheck is open. Alerts are after-the-fact, not deletion protection.', wraplength=850).grid(row=1, column=0, sticky='w', pady=4)
+        ttk.Label(self.frame, text='Monitor a saved folder using file events when available, with a 60-second fallback. Windows can keep running in the notification area. Alerts are after-the-fact.', wraplength=850).grid(row=1, column=0, sticky='w', pady=4)
         controls = ttk.Frame(self.frame)
         controls.grid(row=2, column=0, sticky='ew', pady=6)
         self.buttons = {}
@@ -32,6 +38,15 @@ class SafetyCenter:
             button = ttk.Button(controls, text=title, command=callback)
             button.pack(side='left', padx=(0, 6))
             self.buttons[key] = button
+        self.notifications = tk.BooleanVar(value=True)
+        ttk.Checkbutton(controls, text='Notifications', variable=self.notifications, command=self.update_notifications).pack(side='left', padx=6)
+        self.autostart = tk.BooleanVar(value=False)
+        if not self_test and startup_supported():
+            try:
+                self.autostart.set(startup_enabled())
+            except OSError:
+                pass
+            ttk.Checkbutton(controls, text='Start with Windows', variable=self.autostart, command=self.update_startup).pack(side='left', padx=6)
         self.status = tk.StringVar(value='Choose a scan folder above, then start monitoring or check now.')
         ttk.Label(self.frame, textvariable=self.status, wraplength=850).grid(row=3, column=0, sticky='w', pady=5)
         panes = ttk.Notebook(self.frame)
@@ -75,17 +90,66 @@ class SafetyCenter:
             return Path(path).expanduser().absolute()
         return None
 
+    def resume(self):
+        try:
+            self.prefs = read_preferences()
+            self.notifications.set(self.prefs.notifications)
+            if self.prefs.root:
+                self.activate(validated_root(self.prefs.root))
+        except (OSError, ValueError, RuntimeError) as exc:
+            self.status.set(f'Unable to resume monitoring: {exc}')
+
+    def update_notifications(self):
+        try:
+            save_preferences(Preferences(self.prefs.root, self.notifications.get()))
+            self.prefs.notifications = self.notifications.get()
+        except (OSError, ValueError) as exc:
+            self.notifications.set(self.prefs.notifications)
+            messagebox.showerror('Preferences', str(exc), parent=self.app)
+
+    def update_startup(self):
+        try:
+            set_startup(self.autostart.get())
+        except (OSError, RuntimeError) as exc:
+            self.autostart.set(not self.autostart.get())
+            messagebox.showerror('Windows startup', str(exc), parent=self.app)
+
+    def activate(self, root):
+        self.active_root = root
+        self.previous_alerts = set()
+        self.wakeup = Wakeup(root)
+        self.last_scan = float('-inf')
+        if not self.app.target.get():
+            self.app.root_path.set(str(root))
+        self.run(root, 'snapshot')
+
     def start(self):
         root = self.folder()
         if root is not None:
-            self.active_root = root
-            self.run(root, 'snapshot')
+            try:
+                root = validated_root(root)
+                prefs = Preferences(str(root), self.notifications.get())
+                save_preferences(prefs)
+                self.prefs = prefs
+                self.activate(root)
+            except (OSError, ValueError, RuntimeError) as exc:
+                self.status.set(f'Unable to start monitoring: {exc}')
+
+    def shutdown(self):
+        if self.wakeup is not None:
+            self.wakeup.close()
+            self.wakeup = None
+        self.active_root = None
 
     def stop(self):
-        self.active_root = None
-        if self.due is not None:
-            self.app.after_cancel(self.due)
-            self.due = None
+        try:
+            prefs = Preferences('', self.notifications.get())
+            save_preferences(prefs)
+            self.prefs = prefs
+        except (OSError, ValueError) as exc:
+            self.status.set(f'Unable to save stop preference: {exc}')
+            return
+        self.shutdown()
         self.controls()
         self.status.set('Monitoring stopped. An in-progress check will finish.')
 
@@ -102,9 +166,8 @@ class SafetyCenter:
     def run(self, root, kind):
         if self.busy:
             return
-        if self.due is not None:
-            self.app.after_cancel(self.due)
-            self.due = None
+        if kind == 'snapshot' and self.wakeup is not None:
+            self.wakeup.dirty.clear()
         if root != self.display_root:
             for tree in (self.alerts, self.history, self.dupes):
                 self.fill(tree, [])
@@ -131,18 +194,21 @@ class SafetyCenter:
             self.controls()
             if kind == 'snapshot':
                 self.render_snapshot(root, value)
+                self.last_scan = time.monotonic()
+                if self.active_root == root:
+                    alerts = set(value.alerts)
+                    new = alerts - self.previous_alerts
+                    self.previous_alerts = alerts
+                    if self.notifications.get() and getattr(self.app, 'tray', None):
+                        self.app.tray.notify(len(new))
             elif kind == 'duplicates':
                 self.render_duplicates(root, value)
             else:
                 self.status.set(f'{root}: check failed — {value}')
-            if self.active_root is not None:
-                self.due = self.app.after(60000, self.tick)
-        self.app.after(150, self.poll)
-
-    def tick(self):
-        self.due = None
-        if self.active_root is not None:
+                self.last_scan = time.monotonic()
+        if not self.busy and self.active_root is not None and self.wakeup is not None and self.wakeup.due(self.last_scan, time.monotonic()):
             self.run(self.active_root, 'snapshot')
+        self.app.after(500, self.poll)
 
     @staticmethod
     def fill(tree, rows):
@@ -159,7 +225,7 @@ class SafetyCenter:
         self.fill(self.alerts, [(source, target, moves.get(target, '')) for source, target in result.alerts[:1000]])
         self.fill(self.history, [(datetime.fromtimestamp(t).strftime('%Y-%m-%d %H:%M:%S'),a,p,d) for t,a,p,d in result.history])
         self.tabs.tab(self.frame, text=f'Safety Center ({len(result.alerts)} alerts)' if result.alerts else 'Safety Center')
-        mode = 'Monitoring' if self.active_root is not None else 'Snapshot'
+        mode = f'Monitoring ({self.wakeup.backend})' if self.active_root is not None and self.wakeup else 'Snapshot'
         self.status.set(f'{mode}: {root} | {result.files:,} files | {result.bytes / 1048576:,.1f} MiB | {len(result.alerts)} previously known broken links | {len(result.warnings)} scan warnings')
 
     def render_duplicates(self, root, result):

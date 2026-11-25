@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0
+
+- Windows notification-area integration, optional per-user startup and new broken-link notifications.
+- Remember the opted-in desktop monitor folder and notification preference across launches.
+- Optional native filesystem event wakeups with periodic reconciliation and dependency-free fallback.
+- Headless multi-folder monitor, JSON lines, CLI duplicate search, portable Python zipapp and Linux user-service documentation.
+- Single-instance Windows desktop behavior with Explorer launch forwarding.
+- Five additional headless unit tests and expanded Windows and Linux package smoke tests.
+
 ## 0.4.1
 
 - Close regression-test SQLite connections explicitly before temporary directory cleanup on Windows.

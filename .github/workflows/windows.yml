@@ -62,9 +62,35 @@ jobs:
             release/BreakCheck-Portable.zip
             release/SHA256SUMS.txt
           if-no-files-found: error
+  headless:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Build and smoke-test portable Python application
+        shell: bash
+        run: |
+          python -m unittest discover -s tests -v
+          python packaging/build-headless.py
+          python release/BreakCheck.pyz --version
+          BREAKCHECK_STATE_DIR="$RUNNER_TEMP/breakcheck-headless" python release/BreakCheck.pyz watch examples/demo --once --json --poll
+          python release/BreakCheck.pyz duplicates examples/demo --json
+          set +e
+          python release/BreakCheck.pyz check examples/demo assets/logo.svg --json
+          code=$?
+          set -e
+          test "$code" -eq 2
+      - uses: actions/upload-artifact@v4
+        with:
+          name: breakcheck-headless
+          path: release/BreakCheck.pyz
+          if-no-files-found: error
   publish:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    needs: build
+    needs: [build, headless]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -73,6 +99,10 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: breakcheck-windows-x64
+          path: release
+      - uses: actions/download-artifact@v4
+        with:
+          name: breakcheck-headless
           path: release
       - name: Publish versioned release once
         env:
@@ -83,11 +113,11 @@ jobs:
           set -euo pipefail
           [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
           tag="v$VERSION"
-          (cd release && sha256sum -c SHA256SUMS.txt)
+          (cd release && sha256sum -c SHA256SUMS.txt && sha256sum BreakCheck.pyz >> SHA256SUMS.txt)
           if gh release view "$tag" >/dev/null 2>&1; then
             echo "Release $tag already exists; leaving existing assets unchanged."
             exit 0
           fi
-          gh release create "$tag" release/BreakCheck-Setup.exe release/BreakCheck-Portable.zip release/SHA256SUMS.txt \
+          gh release create "$tag" release/BreakCheck-Setup.exe release/BreakCheck-Portable.zip release/BreakCheck.pyz release/SHA256SUMS.txt \
             --target "$GITHUB_SHA" --title "BreakCheck $VERSION" --latest \
             --notes "New to BreakCheck? Download BreakCheck-Setup.exe and run it. No Python, terminal, or administrator rights required. Or extract BreakCheck-Portable.zip and open BreakCheck.exe. SHA-256 checksums are included. Binaries are unsigned. Windows x64; review scan coverage before making changes."

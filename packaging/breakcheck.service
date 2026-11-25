@@ -1,0 +1,13 @@
+[Unit]
+Description=BreakCheck local file safety monitor
+
+[Service]
+Type=simple
+ExecStart=%h/.local/share/breakcheck-venv/bin/python -m breakcheck watch
+Restart=on-failure
+RestartSec=15
+NoNewPrivileges=true
+UMask=0077
+
+[Install]
+WantedBy=default.target

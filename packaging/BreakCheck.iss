@@ -47,6 +47,8 @@ Name: "{group}\Uninstall BreakCheck"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\BreakCheck"; Filename: "{app}\BreakCheck.exe"; Tasks: desktopicon
 
 [Registry]
+; Remove the app's opt-in startup value on uninstall; never enable it silently.
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "BreakCheck"; Flags: uninsdeletevalue
 Root: HKCU; Subkey: "Software\Classes\*\shell\BreakCheck.Inspect"; ValueType: string; ValueName: ""; ValueData: "Inspect with BreakCheck"; Flags: uninsdeletekey; Tasks: explorer
 Root: HKCU; Subkey: "Software\Classes\*\shell\BreakCheck.Inspect"; ValueType: string; ValueName: "Icon"; ValueData: "{app}\BreakCheck.exe"; Tasks: explorer
 Root: HKCU; Subkey: "Software\Classes\*\shell\BreakCheck.Inspect\command"; ValueType: string; ValueName: ""; ValueData: """{app}\BreakCheck.exe"" --inspect=""%1"""; Tasks: explorer

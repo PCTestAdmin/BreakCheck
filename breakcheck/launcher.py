@@ -19,10 +19,24 @@ def launch_paths(inspect=None, root=None):
     return scope, target
 
 
-def run_desktop(inspect=None, root=None, self_test=False):
+def run_desktop(inspect=None, root=None, self_test=False, background=False):
     from .gui import App
     from .core import scan, analyze
-    app = App(self_test=self_test)
+    from .tray import WindowsInstance
+    instance = None if self_test else WindowsInstance()
+    if instance is not None and not instance.primary:
+        try:
+            if not background or inspect or root:
+                instance.forward(inspect, root)
+            return 0
+        finally:
+            instance.close()
+    try:
+        app = App(self_test=self_test)
+    except BaseException:
+        if instance is not None:
+            instance.close()
+        raise
     if self_test:
         app.withdraw()
         try:
@@ -53,6 +67,41 @@ def run_desktop(inspect=None, root=None, self_test=False):
                 app.update_idletasks()
                 if len(app.safety.alerts.get_children()) != 1 or len(app.safety.dupes.get_children()) != 2:
                     raise RuntimeError('Safety Center self-test failed.')
+                import os, sys
+                if os.name == 'nt' and getattr(sys, 'frozen', False):
+                    import pystray
+                    from .agent import Wakeup
+                    if not pystray.Icon.HAS_NOTIFICATION:
+                        raise RuntimeError('Packaged Windows notification backend missing')
+                    wake = Wakeup(folder)
+                    try:
+                        if wake.backend != 'events + reconciliation':
+                            raise RuntimeError('Packaged Windows filesystem event backend missing')
+                        (folder / 'event-test.txt').write_text('test', encoding='utf-8')
+                        if not wake.dirty.wait(10):
+                            raise RuntimeError('Windows filesystem event not received')
+                    finally:
+                        wake.close()
+                    old = os.environ.get('BREAKCHECK_STATE_DIR')
+                    os.environ['BREAKCHECK_STATE_DIR'] = str(Path(directory) / 'instance-test')
+                    first = second = None
+                    try:
+                        first = WindowsInstance()
+                        second = WindowsInstance()
+                        if not first.primary or second.primary:
+                            raise RuntimeError('Windows single-instance guard failed')
+                        second.forward(asset)
+                        if first.take() != {'inspect': str(asset), 'root': None}:
+                            raise RuntimeError('Windows launch forwarding failed')
+                    finally:
+                        if second is not None:
+                            second.close()
+                        if first is not None:
+                            first.close()
+                        if old is None:
+                            os.environ.pop('BREAKCHECK_STATE_DIR', None)
+                        else:
+                            os.environ['BREAKCHECK_STATE_DIR'] = old
         finally:
             app.destroy()
         return 0
@@ -66,7 +115,34 @@ def run_desktop(inspect=None, root=None, self_test=False):
             app.status.set('Choose a wider scan folder if needed, then click Analyze impact. Only the selected scan folder is searched.')
     except (OSError, ValueError) as exc:
         app.status.set(str(exc))
-    app.mainloop()
+    from .tray import WindowsTray
+    app.tray = WindowsTray(app, background=background and not inspect)
+    if app.tray.icon is None:
+        app.protocol('WM_DELETE_WINDOW', app.tray.quit)
+    app.safety.resume()
+    def receive_request():
+        try:
+            request = instance.take() if instance is not None else None
+            if request is not None:
+                app.deiconify()
+                app.lift()
+                if request.get('inspect') or request.get('root'):
+                    scope, target = launch_paths(request.get('inspect'), request.get('root'))
+                    if scope is not None:
+                        app.root_path.set(str(scope))
+                    if target is not None:
+                        app.target.set(str(target))
+                        app.tabs.select(app.impact_tab)
+        except (OSError, ValueError) as exc:
+            app.status.set(str(exc))
+        app.after(500, receive_request)
+    app.after(500, receive_request)
+    try:
+        app.mainloop()
+    finally:
+        app.safety.shutdown()
+        if instance is not None:
+            instance.close()
     return 0
 
 
@@ -75,5 +151,6 @@ def main(argv=None):
     parser.add_argument('--inspect', help='Preselect a file or folder')
     parser.add_argument('--root', help='Initial scan folder')
     parser.add_argument('--self-test', action='store_true', help=argparse.SUPPRESS)
+    parser.add_argument('--background', action='store_true', help='Start in the Windows notification area')
     args = parser.parse_args(argv)
-    return run_desktop(args.inspect, args.root, args.self_test)
+    return run_desktop(args.inspect, args.root, args.self_test, args.background)

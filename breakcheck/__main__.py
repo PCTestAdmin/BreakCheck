@@ -25,11 +25,16 @@ def main(argv=None):
     inventory.add_argument('root', type=Path)
     inventory.add_argument('--max-files', type=int, default=100000)
     inventory.add_argument('--json', action='store_true')
+    gui.add_argument('--background', action='store_true', help='Start in the Windows notification area')
+    from .agent import add_commands, dispatch
+    add_commands(sub)
     args = parser.parse_args(argv)
+    if args.command in ('watch', 'monitor-config', 'duplicates'):
+        return dispatch(args)
     if args.command in (None, 'gui'):
         try:
             from .launcher import run_desktop
-            return run_desktop(getattr(args, 'inspect', None), getattr(args, 'root', None))
+            return run_desktop(getattr(args, 'inspect', None), getattr(args, 'root', None), background=getattr(args, 'background', False))
         except Exception as exc:
             print(f'Unable to launch desktop interface: {exc}', file=sys.stderr)
             return 1

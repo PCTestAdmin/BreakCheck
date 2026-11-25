@@ -4,12 +4,16 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "breakcheck"
-version = "0.4.1"
+version = "0.5.0"
 description = "Local file safety assistant: monitor project changes, detect broken references and find duplicate files."
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 dependencies = []
+
+[project.optional-dependencies]
+watch = ["watchdog>=6,<7"]
+windows = ["watchdog>=6,<7", "pystray==0.19.5", "Pillow>=11,<13"]
 
 [project.scripts]
 breakcheck = "breakcheck.__main__:main"

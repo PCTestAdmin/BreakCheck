@@ -16,6 +16,9 @@ MAX_HASH_BYTES = 4 * 1024**3
 
 
 def state_path():
+    override = os.environ.get('BREAKCHECK_STATE_DIR')
+    if override:
+        return Path(override).expanduser().resolve() / 'safety.sqlite3'
     base = Path(os.environ.get('LOCALAPPDATA') or os.environ.get('XDG_DATA_HOME') or Path.home() / '.local/share')
     return base / 'BreakCheck' / 'safety.sqlite3'
 

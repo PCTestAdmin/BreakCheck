@@ -90,6 +90,10 @@ def main():
                  expected=2, capture=True)
     if len(json.loads(result)['direct']) != 3:
         raise RuntimeError('Unexpected dependency count')
+    headless_env = dict(os.environ, BREAKCHECK_STATE_DIR=str(LOGS / 'headless-test-state'))
+    headless = run('packaged headless snapshot', [cli, 'watch', 'examples/demo', '--once', '--json', '--poll'], capture=True, env=headless_env)
+    if json.loads(headless)['files'] < 1:
+        raise RuntimeError('Packaged headless snapshot failed')
     gui_test(ROOT / 'dist' / 'BreakCheck.exe', 'portable-gui')
     # A source launcher check must never prompt or install packages.
     run('source launcher', ['cmd.exe', '/d', '/c', 'Start-BreakCheck.cmd', '--check'])
