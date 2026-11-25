@@ -62,3 +62,7 @@ Run `repair suggest /path/to/project` for historical move hints. Preview with `r
 ## Storage intelligence
 
 Run `storage /path/to/folder --json` for machine-readable results. Optional `--older-days 365 --min-mib 500` filters review candidates; `--max-entries 1000000` increases the traversal limit. Exit code 1 indicates partial coverage or an error. Logical size is not reclaimable disk space. No source files are modified.
+
+## Guarded operations
+
+`guard preview /project old.txt --destination new.txt` outputs a risk report and confirmation token. Review it, close external editors, then run `guard apply /project old.txt --destination new.txt --confirm TOKEN`. `guard add-rule /project/important --mode block`, `guard rules`, and `guard remove-rule /project/important` manage local rules. Rules only affect this workflow. `guard preview /project old.txt --operation delete` is advisory. `update-check` makes an explicit GitHub release lookup. Linux requires atomic no-replace rename support.

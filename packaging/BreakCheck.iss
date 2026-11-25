@@ -33,7 +33,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:"
-Name: "explorer"; Description: "Add Inspect with BreakCheck to File Explorer"; GroupDescription: "File Explorer integration:"; Flags: unchecked
+Name: "explorer"; Description: "Add inspection and guarded file operations to File Explorer"; GroupDescription: "File Explorer integration:"; Flags: unchecked
 
 [Files]
 Source: "..\dist\BreakCheck.exe"; DestDir: "{app}"; Flags: ignoreversion
@@ -56,6 +56,10 @@ Root: HKCU; Subkey: "Software\Classes\Directory\shell\BreakCheck.Inspect"; Value
 Root: HKCU; Subkey: "Software\Classes\Directory\shell\BreakCheck.Inspect"; ValueType: string; ValueName: "Icon"; ValueData: "{app}\BreakCheck.exe"; Tasks: explorer
 Root: HKCU; Subkey: "Software\Classes\Directory\shell\BreakCheck.Inspect\command"; ValueType: string; ValueName: ""; ValueData: """{app}\BreakCheck.exe"" --inspect=""%1"""; Tasks: explorer
 
+Root: HKCU; Subkey: "Software\Classes\*\shell\BreakCheck.Guard"; ValueType: string; ValueName: ""; ValueData: "Guarded move with BreakCheck"; Flags: uninsdeletekey; Tasks: explorer
+Root: HKCU; Subkey: "Software\Classes\*\shell\BreakCheck.Guard"; ValueType: string; ValueName: "Icon"; ValueData: "{app}\BreakCheck.exe"; Tasks: explorer
+Root: HKCU; Subkey: "Software\Classes\*\shell\BreakCheck.Guard\command"; ValueType: string; ValueName: ""; ValueData: """{app}\BreakCheck.exe"" --guard --inspect=""%1"""; Tasks: explorer
+
 [Run]
 Filename: "{app}\BreakCheck.exe"; Description: "Launch BreakCheck"; Flags: nowait postinstall skipifsilent
 
@@ -65,6 +69,7 @@ begin
   if (CurStep = ssInstall) and (not WizardIsTaskSelected('explorer')) then
   begin
     RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\*\shell\BreakCheck.Inspect');
+    RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\*\shell\BreakCheck.Guard');
     RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\Directory\shell\BreakCheck.Inspect');
   end;
 end;

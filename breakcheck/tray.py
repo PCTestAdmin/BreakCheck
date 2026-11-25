@@ -81,9 +81,12 @@ class WindowsInstance:
             raise ctypes.WinError(error)
         self.primary = error != 183
 
-    def forward(self, inspect=None, root=None):
-        write_json(self.request, {'inspect': str(Path(inspect).absolute()) if inspect else None,
-                                  'root': str(Path(root).absolute()) if root else None})
+    def forward(self, inspect=None, root=None, guard=False):
+        data={'inspect': str(Path(inspect).absolute()) if inspect else None,
+              'root': str(Path(root).absolute()) if root else None}
+        if guard:
+            data['guard']=True
+        write_json(self.request,data)
 
     def take(self):
         if self.request is None:

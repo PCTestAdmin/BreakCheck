@@ -25,6 +25,7 @@ class Preferences:
     notifications: bool = True
     backup: bool = False
     quota_mib: int = 256
+    auto_updates: bool = False
 
 
 def settings_path():
@@ -42,7 +43,10 @@ def read_preferences(path=None):
     backup, quota = data.get('backup', False), data.get('quota_mib', 256)
     if not isinstance(backup, bool) or type(quota) is not int or not 1 <= quota <= 4096:
         raise ValueError('Invalid recovery preferences.')
-    return Preferences(data.get('root', ''), data.get('notifications', True), backup, quota)
+    auto = data.get('auto_updates', False)
+    if not isinstance(auto,bool):
+        raise ValueError('Invalid update preference.')
+    return Preferences(data.get('root', ''), data.get('notifications', True), backup, quota, auto)
 
 
 def write_json(path, data):
@@ -216,6 +220,23 @@ def add_commands(sub):
     watch.add_argument('--json', action='store_true', help='Emit JSON lines')
     watch.add_argument('--backup', action='store_true', help='Opt in to saving local file versions')
     watch.add_argument('--quota-mib', type=int, choices=range(1,4097), metavar='1-4096', default=256)
+    protection = sub.add_parser('guard',help='Review or execute a guarded single-file operation')
+    commands = protection.add_subparsers(dest='action',required=True)
+    for action in ('preview','apply'):
+        cmd=commands.add_parser(action)
+        cmd.add_argument('root',type=Path)
+        cmd.add_argument('source',type=Path)
+        cmd.add_argument('--operation',choices=('move','rename','delete'),default='move')
+        cmd.add_argument('--destination',type=Path)
+        if action=='apply':
+            cmd.add_argument('--confirm',required=True)
+    commands.add_parser('rules')
+    add=commands.add_parser('add-rule')
+    add.add_argument('path',type=Path)
+    add.add_argument('--mode',choices=('block','warn'),required=True)
+    remove=commands.add_parser('remove-rule')
+    remove.add_argument('path',type=Path)
+    sub.add_parser('update-check',help='Check GitHub for a newer release (network request)')
     storage = sub.add_parser('storage', help='Analyze logical sizes without reading file contents')
     storage.add_argument('folder', type=Path)
     storage.add_argument('--max-entries', type=int, default=500000)
@@ -267,6 +288,25 @@ def dispatch(args):
                 prefs.root = ''
                 save_preferences(prefs)
             print(json.dumps(asdict(prefs)))
+            return 0
+        if args.command == 'update-check':
+            from .updates import check_update
+            print(json.dumps(check_update()))
+            return 0
+        if args.command == 'guard':
+            from .guard import preview, apply, rules, set_rule, remove_rule
+            if args.action=='add-rule':
+                set_rule(args.path,args.mode)
+            elif args.action=='remove-rule':
+                remove_rule(args.path)
+            elif args.action in ('preview','apply'):
+                plan=preview(args.root,args.source,args.operation,args.destination)
+                if args.action=='preview':
+                    print(json.dumps(plan.as_dict(),indent=2))
+                    return 0
+                print(apply(plan,args.confirm))
+                return 0
+            print(json.dumps(rules(),indent=2))
             return 0
         if args.command == 'storage':
             from .storage import analyze_storage, human_size

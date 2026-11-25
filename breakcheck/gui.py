@@ -14,6 +14,7 @@ from .layout import Pages
 from .recovery_view import RecoveryView
 from .repair_view import RepairView
 from .storage_view import StorageView
+from .guard_view import GuardView
 from . import __version__
 
 
@@ -83,6 +84,7 @@ class App(tk.Tk):
         self.summary.pack(side='left')
         self.export = ttk.Button(summary_bar, text='Export JSON', command=self.save, state='disabled')
         self.export.pack(side='right')
+        ttk.Button(summary_bar,text='Guarded operation',command=self.open_guard).pack(side='right',padx=6)
         table = ttk.Frame(results)
         table.grid(row=3,column=0,sticky='nsew')
         table.columnconfigure(0,weight=1)
@@ -112,6 +114,7 @@ class App(tk.Tk):
         self.recovery = RecoveryView(self, tabs, self_test)
         self.repair = RepairView(self, tabs, self_test)
         self.storage = StorageView(self, tabs, self_test)
+        self.guard = GuardView(self, tabs, self_test)
         footer = ttk.Frame(self, style='Header.TFrame', padding=(18, 8))
         footer.grid(row=2, column=0, sticky='ew')
         ttk.Label(footer, textvariable=self.status, style='HeaderCaption.TLabel', wraplength=950).pack(side='left')
@@ -120,6 +123,11 @@ class App(tk.Tk):
         apply_theme(self, self.dark.get())
         if not self_test:
             self.after(100, self.poll)
+
+    def open_guard(self):
+        self.guard.open_file(self.root_path.get(),self.target.get())
+        self.guard.operation.set(self.operation.get())
+        self.guard.fields['destination'].set(self.destination.get())
 
     def sync_destination(self):
         self.dest_entry.configure(state='disabled' if self.operation.get() == 'delete' else 'normal')

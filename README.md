@@ -30,6 +30,8 @@ A local file safety assistant. Monitor project changes, detect previously known 
 
 **Explore storage:** Open Storage, select a folder or drive, and scan. Switch between folder, file-type and modification-age distributions; click folder bars to drill down. Review the largest files and filter candidates by size and time since modification. Double-click a file to open Impact analysis. Export JSON or cancel a scan at any time.
 
+**Guard a file operation:** Open Protection or right-click a file in Explorer and choose **Guarded move with BreakCheck** (optional installer integration). Set the project and destination, check risks, then explicitly confirm. Local block/warn rules apply only to this guided workflow. Delete review is advisory; BreakCheck does not delete files. Optional startup update checks query GitHub for release metadata only.
+
 ## Features
 
 - Safety Center with a persistent local index, change history and after-the-fact broken-link alerts.
@@ -38,6 +40,8 @@ A local file safety assistant. Monitor project changes, detect previously known 
 - Opt-in local version history and integrity-checked copy-out recovery.
 - Previewed link repair and persistent undo for supported UTF-8 HTML and JSON relative paths.
 - Read-only delete, move and rename simulations.
+- Guarded same-volume single-file moves and renames with block/warn rules, no destination overwrite and explicit confirmation.
+- Optional startup release checks; no automatic installation.
 - Direct and indirect dependency detection with an interactive graph.
 - Media files with no detected incoming references.
 - Dark mode, JSON reports and a command-line interface.
@@ -57,7 +61,7 @@ A local file safety assistant. Monitor project changes, detect previously known 
 
 BreakCheck is a static analyzer, not a guarantee that deleting a file is safe. It detects supported, existing references within the selected scan folder. Dynamic links, unsupported formats and references outside that folder may be missed. Files listed as unreferenced may still be in use. Review warnings, scan trusted folders and keep backups.
 
-Monitoring is opt-in and runs while the desktop process or terminal watcher is alive. It uses optional filesystem events with periodic full reconciliation; if events are unavailable it checks every 60 seconds. It does not intercept or prevent Windows file operations. It detects changes between snapshots, not every filesystem event; possible moves are inferred from matching metadata. Only previously observed references whose source metadata is unchanged are flagged as broken. The first scan cannot find historical breakage. Incomplete inventory scans preserve the previous baseline and do not generate deletion alerts. Scans are capped at 100,000 files; duplicate hashing has a 4 GiB per-run budget. Reported duplicate sizes are logical file sizes, not guaranteed reclaimable disk space.
+Monitoring is opt-in and runs while the desktop process or terminal watcher is alive. It uses optional filesystem events with periodic full reconciliation; if events are unavailable it checks every 60 seconds. It does not intercept or prevent external file operations. Protection rules only govern the guarded move/rename workflow, not repair, recovery, Explorer, shell commands or other applications. Guarded moves require a trusted project and a regular single-link file with an existing same-volume destination directory inside the project. Linux requires filesystem support for atomic no-replace rename; unsupported systems refuse the move. Close external writers first; preflight checks are not a filesystem transaction. Delete checks never delete. Update checks are disabled by default, contact GitHub (IP address and ordinary HTTP metadata), and never download or execute an update. It detects changes between snapshots, not every filesystem event; possible moves are inferred from matching metadata. Only previously observed references whose source metadata is unchanged are flagged as broken. The first scan cannot find historical breakage. Incomplete inventory scans preserve the previous baseline and do not generate deletion alerts. Scans are capped at 100,000 files; duplicate hashing has a 4 GiB per-run budget. Reported duplicate sizes are logical file sizes, not guaranteed reclaimable disk space.
 
 The local SQLite database stores paths, file metadata, observed dependencies and up to 1,000 recent events per monitored folder (no file contents). On Windows it lives at `%LOCALAPPDATA%/BreakCheck/safety.sqlite3`; close the app before removing it to clear history. Choose project folders outside the database directory; scanning a folder that contains this directory is not supported for monitoring. No automatic startup unless explicitly enabled, cloud upload or system-wide monitoring.
 

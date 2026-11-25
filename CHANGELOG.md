@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.0
+
+- Active Protection workspace with explicit risk previews, local block/warn path rules and no-overwrite guided file moves/renames on Windows and Linux.
+- Optional Explorer guarded-move action and headless protection commands.
+- Opt-in startup release checks with no automatic installation.
+- Delete review remains advisory; external operations are not intercepted.
+- Six new unit tests and extended Windows/Linux package tests; scans reporting warnings refuse guarded execution.
+
 ## 0.9.0
 
 - Storage Intelligence workspace with interactive folder drill-down, file-type and modification-age distributions.

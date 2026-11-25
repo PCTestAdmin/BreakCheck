@@ -95,6 +95,10 @@ jobs:
           grep -q 'original.txt' "$project/index.html"
           python release/BreakCheck.pyz repair undo "$repair" --yes
           grep -q 'missing.png' "$project/index.html"
+          token=$(python release/BreakCheck.pyz guard preview "$project" original.txt --destination moved.txt | python -c 'import json,sys; print(json.load(sys.stdin)["confirm"])')
+          python release/BreakCheck.pyz guard apply "$project" original.txt --destination moved.txt --confirm "$token"
+          test ! -e "$project/original.txt"
+          test "$(cat "$project/moved.txt")" = 'recovery test'
           set +e
           python release/BreakCheck.pyz check examples/demo assets/logo.svg --json
           code=$?

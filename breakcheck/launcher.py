@@ -19,7 +19,7 @@ def launch_paths(inspect=None, root=None):
     return scope, target
 
 
-def run_desktop(inspect=None, root=None, self_test=False, background=False):
+def run_desktop(inspect=None, root=None, self_test=False, background=False, guard=False):
     from .gui import App
     from .core import scan, analyze
     from .tray import WindowsInstance
@@ -27,7 +27,7 @@ def run_desktop(inspect=None, root=None, self_test=False, background=False):
     if instance is not None and not instance.primary:
         try:
             if not background or inspect or root:
-                instance.forward(inspect, root)
+                instance.forward(inspect, root, guard)
             return 0
         finally:
             instance.close()
@@ -88,6 +88,14 @@ def run_desktop(inspect=None, root=None, self_test=False, background=False):
                 app.storage.render(storage_report)
                 if storage_report.files != 3 or len(app.storage.largest.get_children()) != 3:
                     raise RuntimeError('Storage workspace self-test failed')
+                from .guard import preview as guard_preview, apply as guard_apply
+                guard_plan = guard_preview(folder,'copy.png','rename','guarded.png')
+                app.guard.render_plan(guard_plan)
+                import sys
+                if sys.platform.startswith(('win','linux')) and guard_plan.evidence['executable']:
+                    guard_apply(guard_plan,guard_plan.token)
+                    if (folder / 'guarded.png').read_bytes()!=b'demo':
+                        raise RuntimeError('Guarded move failed')
                 for page in app.tabs.pages:
                     app.tabs.select(page)
                     app.update_idletasks()
@@ -123,6 +131,9 @@ def run_desktop(inspect=None, root=None, self_test=False, background=False):
                         second.forward(asset)
                         if first.take() != {'inspect': str(asset), 'root': None}:
                             raise RuntimeError('Windows launch forwarding failed')
+                        second.forward(asset,guard=True)
+                        if first.take() != {'inspect': str(asset), 'root': None, 'guard': True}:
+                            raise RuntimeError('Guarded Explorer forwarding failed')
                     finally:
                         if second is not None:
                             second.close()
@@ -142,6 +153,8 @@ def run_desktop(inspect=None, root=None, self_test=False, background=False):
         if target is not None:
             app.target.set(str(target))
             app.tabs.select(app.impact_tab)
+            if guard:
+                app.guard.open_file(scope,target)
             app.status.set('Choose a wider scan folder if needed, then click Analyze impact. Only the selected scan folder is searched.')
     except (OSError, ValueError) as exc:
         app.status.set(str(exc))
@@ -150,6 +163,7 @@ def run_desktop(inspect=None, root=None, self_test=False, background=False):
     if app.tray.icon is None:
         app.protocol('WM_DELETE_WINDOW', app.tray.quit)
     app.safety.resume()
+    app.guard.resume()
     def receive_request():
         try:
             request = instance.take() if instance is not None else None
@@ -163,6 +177,8 @@ def run_desktop(inspect=None, root=None, self_test=False, background=False):
                     if target is not None:
                         app.target.set(str(target))
                         app.tabs.select(app.impact_tab)
+                        if request.get('guard') is True:
+                            app.guard.open_file(scope,target)
         except (OSError, ValueError) as exc:
             app.status.set(str(exc))
         app.after(500, receive_request)
@@ -182,5 +198,6 @@ def main(argv=None):
     parser.add_argument('--root', help='Initial scan folder')
     parser.add_argument('--self-test', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--background', action='store_true', help='Start in the Windows notification area')
+    parser.add_argument('--guard', action='store_true', help='Open guarded file operation')
     args = parser.parse_args(argv)
-    return run_desktop(args.inspect, args.root, args.self_test, args.background)
+    return run_desktop(args.inspect, args.root, args.self_test, args.background, args.guard)

@@ -13,7 +13,8 @@ import winreg
 ROOT = Path(__file__).resolve().parent.parent
 LOGS = ROOT / 'smoke-logs'
 KEYS = (r'Software\Classes\*\shell\BreakCheck.Inspect',
-        r'Software\Classes\Directory\shell\BreakCheck.Inspect')
+        r'Software\Classes\Directory\shell\BreakCheck.Inspect',
+        r'Software\Classes\*\shell\BreakCheck.Guard')
 
 
 def log(message):
@@ -105,6 +106,10 @@ def main():
         if original.read_bytes() != b'recovery smoke test':
             raise RuntimeError('Packaged recovery restore mismatch')
         run('packaged recovery no overwrite', [cli, 'recovery', 'restore', rows[0]['id'], original], expected=1, env=headless_env)
+        plan = json.loads(run('packaged guard preview', [cli, 'guard', 'preview', project, 'original.txt', '--destination', 'moved.txt'], capture=True, env=headless_env))
+        run('packaged guarded move', [cli, 'guard', 'apply', project, 'original.txt', '--destination', 'moved.txt', '--confirm', plan['confirm']], env=headless_env)
+        if original.exists() or (project / 'moved.txt').read_bytes() != b'recovery smoke test':
+            raise RuntimeError('Guarded move content mismatch')
     storage = json.loads(run('packaged storage scan', [cli, 'storage', 'examples/demo', '--json'], capture=True, env=headless_env))
     if not storage['complete'] or storage['files'] < 1 or storage['logical_bytes'] <= 0:
         raise RuntimeError('Packaged storage scan failed')
@@ -124,7 +129,7 @@ def main():
             for key in KEYS:
                 with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key + r'\command') as reg:
                     command = winreg.QueryValueEx(reg, '')[0]
-                    expected = f'"{app}" --inspect="%1"'
+                    expected = f'"{app}" --guard --inspect="%1"' if key.endswith('.Guard') else f'"{app}" --inspect="%1"'
                     if command != expected:
                         raise RuntimeError(f'Unexpected Explorer command: {command!r}')
             log('PASS: Explorer registration')
