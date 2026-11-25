@@ -26,6 +26,10 @@ class Preferences:
     backup: bool = False
     quota_mib: int = 256
     auto_updates: bool = False
+    dark: bool = True
+    welcome_seen: bool = False
+    desktop_interval: int = 60
+    desktop_events: bool = True
 
 
 def settings_path():
@@ -46,7 +50,10 @@ def read_preferences(path=None):
     auto = data.get('auto_updates', False)
     if not isinstance(auto,bool):
         raise ValueError('Invalid update preference.')
-    return Preferences(data.get('root', ''), data.get('notifications', True), backup, quota, auto)
+    dark, seen, interval, events = (data.get('dark', True), data.get('welcome_seen', False), data.get('desktop_interval', 60), data.get('desktop_events', True))
+    if any(type(v) is not bool for v in (dark,seen,events)) or type(interval) is not int or not 15 <= interval <= 3600:
+        raise ValueError('Invalid desktop preferences.')
+    return Preferences(data.get('root', ''), data.get('notifications', True), backup, quota, auto, dark, seen, interval, events)
 
 
 def write_json(path, data):
@@ -80,9 +87,10 @@ def validated_root(root):
 
 class Wakeup:
     """Events are hints; periodically reconcile even if the OS misses events."""
-    def __init__(self, root, interval=60, use_events=True):
+    def __init__(self, root, interval=60, use_events=True, event_gap=2):
         self.root = Path(root)
         self.interval = interval
+        self.event_gap = event_gap
         self.dirty = threading.Event()
         self.observer = None
         self.backend = 'polling'
@@ -128,7 +136,7 @@ class Wakeup:
 
     def due(self, last, now):
         # Avoid feedback loops on platforms that emit directory modifications.
-        return now - last >= self.interval or (self.dirty.is_set() and now - last >= 2)
+        return now - last >= self.interval or (self.dirty.is_set() and now - last >= self.event_gap)
 
 
 def snapshot_payload(root, snapshot, new):

@@ -151,7 +151,7 @@ def apply_theme(app, dark):
     style.map('Accent.TButton', background=[('disabled', bg), ('active', '#1d4ed8'), ('pressed', '#1e40af')],
               foreground=[('disabled', muted), ('!disabled', '#ffffff')])
     for name, color in [('Nav.TButton', sidebar), ('SelectedNav.TButton', hover)]:
-        style.configure(name, anchor='w', padding=(12,11), width=18, borderwidth=0,
+        style.configure(name, anchor='w', padding=(12,8), width=18, borderwidth=0,
                         background=color, foreground=fg, lightcolor=color, darkcolor=color, bordercolor=color)
         style.map(name, background=[('active', hover), ('!active', color)])
     style.configure('TEntry', padding=7, fieldbackground=panel, foreground=fg, insertcolor=fg, borderwidth=1)

@@ -165,7 +165,7 @@ class SafetyCenter:
     def activate(self, root):
         self.active_root = root
         self.previous_alerts = set()
-        self.wakeup = Wakeup(root)
+        self.wakeup = Wakeup(root, self.prefs.desktop_interval, self.prefs.desktop_events, event_gap=10)
         self.last_scan = float('-inf')
         self.monitor_path.set(str(root))
         self.state.set('Monitoring active')
@@ -246,7 +246,8 @@ class SafetyCenter:
                     value = smart_duplicates(root)
                 self.events.put((root, kind, value))
             except Exception as exc:
-                self.events.put((root, 'error', str(exc)))
+                from .desktop import explain_error
+                self.events.put((root, 'error', explain_error(exc)))
         threading.Thread(target=worker, daemon=True).start()
 
     def poll(self):
@@ -285,8 +286,9 @@ class SafetyCenter:
 
     @staticmethod
     def fill(tree, rows):
-        for child in tree.get_children():
-            tree.delete(child)
+        children = tree.get_children()
+        if children:
+            tree.delete(*children)
         for row in rows:
             tree.insert('', 'end', values=row)
 

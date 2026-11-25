@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="BreakCheck is a local, open-source file safety assistant for Windows and Linux. Review dependencies, monitor projects, recover saved versions and explore storage.">
+<title>BreakCheck — Know what breaks before you break it</title>
+<link rel="icon" href="brand.svg" type="image/svg+xml">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="wrap nav">
+<a class="brand" href="./"><img src="brand.svg" width="36" height="36" alt="">BreakCheck</a>
+<nav aria-label="Main"><a href="#features">Features</a><a href="#install">Downloads</a><a href="#fleet">Fleet</a><a href="https://github.com/PCTestAdmin/BreakCheck">GitHub</a></nav>
+</header>
+<main id="main">
+<section class="wrap hero">
+<div>
+<p class="eyebrow">OPEN SOURCE · WINDOWS &amp; LINUX</p>
+<h1>Know what breaks<br>before you break it.</h1>
+<p class="lede">A local file safety workspace for monitoring projects, reviewing dependencies, recovering earlier file versions and exploring storage.</p>
+<div class="actions"><a class="primary" href="https://github.com/PCTestAdmin/BreakCheck/releases/latest/download/BreakCheck-Setup.exe">Download for Windows</a><a class="secondary" href="#install">Other downloads</a></div>
+<p class="small">Free · MIT license · No account needed · Windows x64 binaries are unsigned</p>
+</div>
+<div class="preview" aria-label="Illustrative dashboard, not an actual screenshot">
+<div class="preview-head"><img src="brand.svg" width="26" height="26" alt=""><b>Safety overview</b><span>Illustration</span></div>
+<div class="preview-metrics"><div><small>Files observed</small><strong>24,816</strong></div><div><small>Known broken links</small><strong class="amber">3</strong></div></div>
+<div class="preview-row"><span>Project monitoring</span><b class="mint">Active</b></div>
+<div class="preview-row"><span>Storage analysis</span><b>84.2 GiB</b></div>
+<div class="preview-row"><span>Local recovery</span><b>Opt-in</b></div>
+<div class="preview-note">Review changes before taking action.</div>
+</div>
+</section>
+<section class="wrap section" id="features">
+<p class="eyebrow">ONE WORKSPACE</p><h2>Understand your files, not just their size.</h2>
+<div class="grid">
+<article><span class="num">01</span><h3>Project monitoring</h3><p>Track observed changes and previously known broken file links. Windows tray support and optional startup.</p></article>
+<article><span class="num">02</span><h3>Impact &amp; protection</h3><p>Preview supported dependencies before a file operation. Guided moves and renames respect local rules.</p></article>
+<article><span class="num">03</span><h3>Smart Recovery</h3><p>Opt in to bounded local file versions and restore saved content without overwriting an existing file.</p></article>
+<article><span class="num">04</span><h3>Link Repair</h3><p>Review and confirm repairs to supported relative HTML and JSON paths, with a local undo journal.</p></article>
+<article><span class="num">05</span><h3>Storage Intelligence</h3><p>Explore folder sizes, file types and modification age. Find large files and reference-aware duplicate candidates.</p></article>
+<article><span class="num">06</span><h3>Headless CLI</h3><p>Run without a desktop on Linux or Windows, with JSON output for scripts and approved supervisors.</p></article>
+</div>
+</section>
+<section class="wrap section" id="install">
+<p class="eyebrow">GET BREAKCHECK</p><h2>Choose your platform.</h2>
+<div class="grid downloads">
+<article><h3>Windows installer</h3><p>Per-user setup. Python and admin rights are not needed for the packaged desktop app.</p><a class="primary" href="https://github.com/PCTestAdmin/BreakCheck/releases/latest/download/BreakCheck-Setup.exe">Download setup</a></article>
+<article><h3>Windows portable</h3><p>Extract the ZIP and open BreakCheck.exe. Includes the command-line executable.</p><a class="secondary" href="https://github.com/PCTestAdmin/BreakCheck/releases/latest/download/BreakCheck-Portable.zip">Download ZIP</a></article>
+<article><h3>Linux / terminal</h3><p>Portable Python archive. Requires Python 3.10+ with SQLite. No graphical environment required.</p><a class="secondary" href="https://github.com/PCTestAdmin/BreakCheck/releases/latest/download/BreakCheck.pyz">Download PYZ</a></article>
+</div>
+<p class="small"><a href="https://github.com/PCTestAdmin/BreakCheck/releases">All versions and SHA-256 checksums</a> · <a href="https://github.com/PCTestAdmin/BreakCheck/blob/main/docs/headless.md">CLI documentation</a></p>
+</section>
+<section class="wrap section" id="fleet">
+<div class="fleet"><div><p class="eyebrow">SELF-HOSTED · OPTIONAL</p><h2>BreakCheck Fleet</h2><p>Monitor aggregate project health across endpoints. Individual device tokens, a separate administrator login and a small Docker-ready collector for trusted private networks.</p><a class="secondary" href="https://github.com/PCTestAdmin/BreakCheck/blob/main/docs/fleet.md">Deployment guide</a></div>
+<div class="fleet-diagram"><div>Windows · Linux · Terminal server</div><span>↓ HTTPS</span><div class="server">Fleet collector</div><span>↓</span><div>Authenticated web dashboard</div></div></div>
+</section>
+<section class="wrap section"><h2>Built for deliberate decisions.</h2><p class="lede">BreakCheck is not a system-wide deletion blocker or a full backup. Scans can miss unsupported or out-of-scope references. Review coverage and keep independent backups. Fleet is opt-in; file paths and contents are not submitted.</p><a href="https://github.com/PCTestAdmin/BreakCheck/blob/main/README.md">Read the full limitations and documentation</a></section>
+</main>
+<footer class="wrap footer"><span>BreakCheck · Open source under MIT</span><a href="https://github.com/PCTestAdmin/BreakCheck/issues">Report an issue</a><a href="https://github.com/PCTestAdmin/BreakCheck/actions">Build status</a></footer>
+</body>
+</html>

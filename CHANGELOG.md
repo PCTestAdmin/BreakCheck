@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.0
+
+- First-run Getting started workspace and central Settings page; persisted theme and monitoring preferences.
+- Consistent shield icon for the application, tray, installer and project website.
+- Configurable desktop reconciliation interval and event mode; coalesce automatic event-triggered scans to a minimum ten-second gap.
+- Clearer common filesystem error messages and batched table clearing.
+- Responsive static project website, ready for optional GitHub Pages publication.
+- Five new desktop regression tests and expanded light/dark, icon and workspace smoke coverage.
+
 ## 1.1.0
 
 - Optional self-hosted Fleet collector with authenticated web dashboard, latest-report status API and per-agent enrollment.

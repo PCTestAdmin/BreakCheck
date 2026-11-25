@@ -11,3 +11,6 @@ release/
 *.spec
 
 smoke-logs/
+
+# Generated installer artwork
+/packaging/BreakCheck.ico

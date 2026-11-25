@@ -15,6 +15,9 @@ from .recovery_view import RecoveryView
 from .repair_view import RepairView
 from .storage_view import StorageView
 from .guard_view import GuardView
+from .desktop_view import SettingsView, WelcomeView
+from .brand import icon_png
+import base64
 from . import __version__
 
 
@@ -23,6 +26,9 @@ class App(tk.Tk):
         super().__init__()
         if self_test:
             self.withdraw()
+        self.brand_icon = tk.PhotoImage(data=base64.b64encode(icon_png(64)).decode('ascii'))
+        self.header_icon = tk.PhotoImage(data=base64.b64encode(icon_png(32)).decode('ascii'))
+        self.iconphoto(True, self.brand_icon)
         self.title(f'BreakCheck {__version__} — File safety workspace')
         self.geometry('1180x800')
         self.minsize(960, 690)
@@ -38,7 +44,8 @@ class App(tk.Tk):
         header = ttk.Frame(self, style='Header.TFrame', padding=(20, 14))
         header.grid(row=0, column=0, sticky='ew')
         self.dark = tk.BooleanVar(value=True)
-        ttk.Checkbutton(header, text='Dark appearance', variable=self.dark, style='Header.TCheckbutton', command=lambda: apply_theme(self, self.dark.get())).pack(side='right')
+        ttk.Checkbutton(header, text='Dark appearance', variable=self.dark, style='Header.TCheckbutton', command=self.change_theme).pack(side='right')
+        ttk.Label(header, image=self.header_icon, style='HeaderCaption.TLabel').pack(side='left',padx=(0,9))
         ttk.Label(header, text='BreakCheck', style='Brand.TLabel').pack(side='left')
         ttk.Label(header, text='FILE SAFETY WORKSPACE', style='HeaderCaption.TLabel').pack(side='left', padx=18)
         ttk.Label(header, text=f'v{__version__}', style='HeaderCaption.TLabel').pack(side='right', padx=18)
@@ -115,6 +122,8 @@ class App(tk.Tk):
         self.repair = RepairView(self, tabs, self_test)
         self.storage = StorageView(self, tabs, self_test)
         self.guard = GuardView(self, tabs, self_test)
+        self.settings = SettingsView(self,tabs)
+        self.welcome = WelcomeView(self,tabs)
         footer = ttk.Frame(self, style='Header.TFrame', padding=(18, 8))
         footer.grid(row=2, column=0, sticky='ew')
         ttk.Label(footer, textvariable=self.status, style='HeaderCaption.TLabel', wraplength=950).pack(side='left')
@@ -123,6 +132,9 @@ class App(tk.Tk):
         apply_theme(self, self.dark.get())
         if not self_test:
             self.after(100, self.poll)
+
+    def change_theme(self):
+        self.settings.save_theme()
 
     def open_guard(self):
         self.guard.open_file(self.root_path.get(),self.target.get())
@@ -171,7 +183,8 @@ class App(tk.Tk):
                 index = scan(root)
                 self.events.put(('report', analyze(index, index.root / target, operation, index.root / dest if operation != 'delete' else None)))
             except Exception as exc:
-                self.events.put(('error', str(exc)))
+                from .desktop import explain_error
+                self.events.put(('error', explain_error(exc)))
         threading.Thread(target=worker, daemon=True).start()
 
     def poll(self):

@@ -7,11 +7,11 @@ class Pages(ttk.Frame):
         super().__init__(parent)
         self.columnconfigure(1, weight=1)
         self.rowconfigure(0, weight=1)
-        self.sidebar = ttk.Frame(self, style='Sidebar.TFrame', padding=(14, 22))
+        self.sidebar = ttk.Frame(self, style='Sidebar.TFrame', padding=(12, 14))
         self.sidebar.grid(row=0, column=0, sticky='ns')
         self.sidebar.configure(width=205)
         self.nav = ttk.Frame(self.sidebar, style='Sidebar.TFrame')
-        ttk.Label(self.sidebar, text='WORKSPACE', style='SidebarCaption.TLabel').pack(anchor='w', padx=10, pady=(0,12))
+        ttk.Label(self.sidebar, text='WORKSPACE', style='SidebarCaption.TLabel').pack(anchor='w', padx=10, pady=(0,8))
         self.nav.pack(fill='x')
         ttk.Label(self.sidebar, text='LOCAL  /  PRIVATE', style='SidebarCaption.TLabel').pack(side='bottom', anchor='w', padx=10, pady=8)
         self.pages = []
@@ -30,7 +30,7 @@ class Pages(ttk.Frame):
         for page in self.pages:
             self.buttons[page].pack_forget()
         for page in self.pages:
-            self.buttons[page].pack(fill='x', pady=2)
+            self.buttons[page].pack(fill='x', pady=1)
         if self.current is None:
             self.select(child)
 
@@ -45,6 +45,7 @@ class Pages(ttk.Frame):
         self.current = child
         child.grid(row=0, column=1, sticky='nsew', padx=22, pady=18)
         self.buttons[child].configure(style='SelectedNav.TButton')
+        child.event_generate('<<PageSelected>>', when='tail')
 
     def tab(self, child, **kwargs):
         if 'text' in kwargs:

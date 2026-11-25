@@ -96,6 +96,20 @@ def run_desktop(inspect=None, root=None, self_test=False, background=False, guar
                     guard_apply(guard_plan,guard_plan.token)
                     if (folder / 'guarded.png').read_bytes()!=b'demo':
                         raise RuntimeError('Guarded move failed')
+                from .brand import icon_png
+                if app.brand_icon.width()!=64 or not icon_png(64).startswith(b'\x89PNG'):
+                    raise RuntimeError('Application icon self-test failed')
+                app.settings.resume()
+                if app.settings.interval.get() != '60' or not app.settings.events.get():
+                    raise RuntimeError('Default settings self-test failed')
+                app.tabs.select(app.welcome.frame)
+                if app.tabs.select()!=str(app.welcome.frame):
+                    raise RuntimeError('Welcome navigation failed')
+                app.dark.set(False)
+                apply_theme(app,False)
+                app.update_idletasks()
+                app.dark.set(True)
+                apply_theme(app,True)
                 for page in app.tabs.pages:
                     app.tabs.select(page)
                     app.update_idletasks()
@@ -164,6 +178,9 @@ def run_desktop(inspect=None, root=None, self_test=False, background=False, guar
         app.protocol('WM_DELETE_WINDOW', app.tray.quit)
     app.safety.resume()
     app.guard.resume()
+    app.settings.resume()
+    if not (inspect or root or background or app.safety.prefs.root or app.safety.prefs.welcome_seen):
+        app.tabs.select(app.welcome.frame)
     def receive_request():
         try:
             request = instance.take() if instance is not None else None

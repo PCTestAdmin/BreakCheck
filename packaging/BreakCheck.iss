@@ -25,6 +25,7 @@ OutputBaseFilename=BreakCheck-Setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=BreakCheck.ico
 CloseApplications=yes
 RestartApplications=no
 

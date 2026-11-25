@@ -17,9 +17,11 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Build dependency installation failed' }
     python -m unittest discover -s tests -v
     if ($LASTEXITCODE -ne 0) { throw 'Unit tests failed' }
-    python -m PyInstaller --noconfirm --clean --onefile --windowed --noupx --name BreakCheck --paths . --hidden-import pystray._win32 --hidden-import watchdog.observers.read_directory_changes packaging/gui_entry.py
+    python packaging/build-icon.py
+    if ($LASTEXITCODE -ne 0) { throw 'Icon generation failed' }
+    python -m PyInstaller --noconfirm --clean --onefile --icon packaging/BreakCheck.ico --windowed --noupx --name BreakCheck --paths . --hidden-import pystray._win32 --hidden-import watchdog.observers.read_directory_changes packaging/gui_entry.py
     if ($LASTEXITCODE -ne 0) { throw 'Desktop build failed' }
-    python -m PyInstaller --noconfirm --clean --onefile --console --noupx --name BreakCheckCLI --paths . --hidden-import pystray._win32 --hidden-import watchdog.observers.read_directory_changes packaging/cli_entry.py
+    python -m PyInstaller --noconfirm --clean --onefile --icon packaging/BreakCheck.ico --console --noupx --name BreakCheckCLI --paths . --hidden-import pystray._win32 --hidden-import watchdog.observers.read_directory_changes packaging/cli_entry.py
     if ($LASTEXITCODE -ne 0) { throw 'CLI build failed' }
     New-Item -ItemType Directory -Force release | Out-Null
     # Remove only known previous outputs, not unrelated user files.

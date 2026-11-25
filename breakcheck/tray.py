@@ -125,11 +125,10 @@ class WindowsTray:
             return
         try:
             import pystray
-            from PIL import Image, ImageDraw
-            image = Image.new('RGBA', (64, 64))
-            draw = ImageDraw.Draw(image)
-            draw.polygon([(32, 3), (58, 13), (55, 39), (44, 52), (32, 61), (20, 52), (9, 39), (6, 13)], fill='#2563eb')
-            draw.line([(17, 32), (28, 43), (47, 22)], fill='white', width=6)
+            from PIL import Image
+            from io import BytesIO
+            from .brand import icon_png
+            image = Image.open(BytesIO(icon_png(64))).convert('RGBA')
             self.icon = pystray.Icon('BreakCheck', image, 'BreakCheck',
                 menu=pystray.Menu(
                     pystray.MenuItem('Open BreakCheck', lambda *_: self.events.put('open'), default=True),

@@ -8,6 +8,8 @@ A local file safety assistant. Monitor project changes, detect previously known 
 
 [Windows installer releases](https://github.com/PCTestAdmin/BreakCheck/releases) · [Build status](https://github.com/PCTestAdmin/BreakCheck/actions/workflows/windows.yml)
 
+The [project website source](docs/index.html) is included and can be published through GitHub Pages; see [website setup](docs/website.md).
+
 ## Installation
 
 **Windows:** Download and run the [installer](https://github.com/PCTestAdmin/BreakCheck/releases/latest/download/BreakCheck-Setup.exe), or extract the [portable ZIP](https://github.com/PCTestAdmin/BreakCheck/releases/latest/download/BreakCheck-Portable.zip). Windows binaries are unsigned. The [latest release](https://github.com/PCTestAdmin/BreakCheck/releases) may lag behind the source.
@@ -15,6 +17,8 @@ A local file safety assistant. Monitor project changes, detect previously known 
 **From source:** [Download the ZIP](https://github.com/PCTestAdmin/BreakCheck/archive/refs/heads/main.zip), extract it, then open `Start-BreakCheck.cmd`. Python is required for the source version; optional tray and event features require `pip install '.[windows]'` on Windows.
 
 ## How to use
+
+**First launch:** Getting started guides you to a project, storage analysis or recovery without starting scans automatically. Settings centralizes theme, notifications, optional Windows startup, update checks and monitoring frequency. The desktop theme and monitor settings are remembered.
 
 **Monitor a folder:** In Overview, select a project folder and click **Start monitoring**. BreakCheck remembers the folder across launches. On Windows, closing the window hides it in the notification area; use the tray menu to quit. Enable **Start with Windows** in the packaged app if desired. New broken links trigger Windows notifications when enabled.
 
@@ -47,7 +51,7 @@ A local file safety assistant. Monitor project changes, detect previously known 
 - Optional self-hosted fleet monitoring for Windows and Linux, authenticated web dashboard and JSON status API.
 - Direct and indirect dependency detection with an interactive graph.
 - Media files with no detected incoming references.
-- Dark mode, JSON reports and a command-line interface.
+- Persistent light/dark appearance, first-run guidance, central settings, JSON reports and a command-line interface.
 - Local processing, no account or cloud required.
 
 ## Supported formats
