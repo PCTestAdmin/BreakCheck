@@ -18,7 +18,10 @@ try {
     if ($scanExit -ne 2 -or $report.direct.Count -ne 3) { throw 'Bundled CLI scan failed' }
     $global:LASTEXITCODE = 0
     Invoke-CheckedProcess (Resolve-Path dist\BreakCheck.exe).Path @('--self-test')
-    $setup = (Resolve-Path "release\BreakCheck-$version-windows-x64-setup.exe").Path
+    # Check the source launcher without opening a window or installing anything.
+    cmd.exe /d /c Start-BreakCheck.cmd --check
+    if ($LASTEXITCODE -ne 0) { throw 'Source launcher check failed' }
+    $setup = (Resolve-Path "release\BreakCheck-Setup.exe").Path
     $install = Join-Path $env:TEMP ("BreakCheck Smoke " + [guid]::NewGuid().ToString('N'))
     $keys = @('Software\Classes\*\shell\BreakCheck.Inspect', 'Software\Classes\Directory\shell\BreakCheck.Inspect')
     try {

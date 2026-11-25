@@ -6,7 +6,11 @@
 
 A local, read-only file dependency inspector for Windows, macOS and Linux.
 
-![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg) ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue) ![Status: MVP](https://img.shields.io/badge/status-MVP-orange)
+[![Download for Windows](https://img.shields.io/badge/Download%20for%20Windows-Setup.exe-0078D4?style=for-the-badge&logo=windows)](https://github.com/PCTestAdmin/BreakCheck/releases/latest/download/BreakCheck-Setup.exe)
+
+[Portable ZIP](https://github.com/PCTestAdmin/BreakCheck/releases/latest/download/BreakCheck-Portable.zip) · [All releases](https://github.com/PCTestAdmin/BreakCheck/releases) · [Installation help](#windows-downloads)
+
+![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg) ![Status: MVP](https://img.shields.io/badge/status-MVP-orange)
 
 </div>
 
@@ -35,15 +39,31 @@ Before deleting a shared asset, renaming a file, or reorganizing a project folde
 
 ## Windows downloads
 
-Get the installer or portable ZIP from [GitHub Releases](https://github.com/PCTestAdmin/BreakCheck/releases) after the Windows package workflow succeeds. Both include a standalone desktop executable and console CLI, with Python and Tk bundled. Windows 10 (1809+) and Windows 11 x64 are the target platforms.
+### Recommended: install in two steps
 
-- **Installer:** Run the setup EXE. Installs per user without administrator privileges, adds Start menu shortcuts, and offers optional desktop and File Explorer shortcuts. Uninstall from Settings > Apps.
-- **Portable:** Extract the ZIP and double-click `BreakCheck.exe`. No installation or registry changes are required. Run `BreakCheckCLI.exe --help` from PowerShell to use the CLI.
-- **Explorer:** Enable the optional integration during setup, then right-click a file or folder and choose **Inspect with BreakCheck** (on Windows 11, look under **Show more options**). The selected target is prefilled; choose a wider scan folder if necessary and click **Analyze impact**. Nothing is scanned automatically.
+1. [**Download BreakCheck-Setup.exe**](https://github.com/PCTestAdmin/BreakCheck/releases/latest/download/BreakCheck-Setup.exe).
+2. Double-click it, choose your optional shortcuts, then click **Install** and **Finish**.
 
-Binaries are unsigned and may produce a Windows SmartScreen warning. Verify the download's SHA-256 against `SHA256SUMS.txt` and follow your organization's security policy. If no release is available, check [Windows package builds](https://github.com/PCTestAdmin/BreakCheck/actions/workflows/windows.yml) or run from source below.
+BreakCheck opens when setup completes. Find it again in the Start menu or via the desktop shortcut. No Python, terminal, or administrator privileges required. Windows 10 (1809+) and Windows 11 x64 are the target platforms.
 
-## Quick start
+### Prefer no installation?
+
+[Download BreakCheck-Portable.zip](https://github.com/PCTestAdmin/BreakCheck/releases/latest/download/BreakCheck-Portable.zip), extract the entire ZIP and double-click `BreakCheck.exe`. Both the desktop app and console CLI are included.
+
+### Download not available yet?
+
+The direct links work once a release with the named assets has successfully been published. Check [all releases](https://github.com/PCTestAdmin/BreakCheck/releases) or [Windows package builds](https://github.com/PCTestAdmin/BreakCheck/actions/workflows/windows.yml) if a download returns 404.
+
+To run from source without typing commands, [download the source ZIP](https://github.com/PCTestAdmin/BreakCheck/archive/refs/heads/main.zip), extract it, then double-click `Start-BreakCheck.cmd`. It detects Python 3.10+ with Tk. If Python is missing, it offers to open the downloads page or install Python through Windows Package Manager with your consent. Python is only required for this fallback, not for the EXE installer.
+
+### Updates, uninstall and security
+
+- To update, download and run the newest setup EXE. The installer uses the same application ID and per-user installation directory.
+- To uninstall, open Windows Settings > Apps > Installed apps and select BreakCheck.
+- Enable optional Explorer integration during setup to inspect files and folders by right-clicking **Inspect with BreakCheck** (Windows 11: **Show more options**). The selected target is prefilled; choose a wider scan folder if necessary and click **Analyze impact**.
+- Binaries are unsigned and may display a Windows SmartScreen warning. Verify downloads against the [SHA-256 checksums](https://github.com/PCTestAdmin/BreakCheck/releases/latest/download/SHA256SUMS.txt) and follow your organization's security policy.
+
+## Quick start from source (developers)
 
 Install Python 3.10 or newer. The desktop app also requires Tk, included in typical Windows and macOS Python installations; on Debian/Ubuntu install `python3-tk` if needed.
 
@@ -87,7 +107,6 @@ Paths passed to `check` are relative to the scan root unless absolute. `--max-fi
 | Markdown (`.md`, `.markdown`) | Common inline links/images and reference definitions |
 | JSON (`.json`) | Heuristic path-like string values resolving to existing files |
 | Office Open XML (`.xlsx`, `.docx`, `.pptx`, macro-enabled variants) | Local external relationship targets in `.rels` entries, resolved relative to the document directory |
-
 | SVG (`.svg`) | XML `href` and `xlink:href` links |
 | Wavefront (`.obj`, `.mtl`) | Simple material-library and texture-map paths; texture options and multiple libraries per line are not parsed |
 | Adobe Premiere Pro (`.prproj`) | Experimental UTF-8 plain/gzip XML media path fields; stored paths may be stale; no timeline/object graph interpretation |

@@ -18,9 +18,10 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.17763
 UninstallDisplayIcon={app}\BreakCheck.exe
-LicenseFile=..\LICENSE
+DisableDirPage=yes
+DisableReadyPage=yes
 OutputDir=..\release
-OutputBaseFilename=BreakCheck-{#AppVersion}-windows-x64-setup
+OutputBaseFilename=BreakCheck-Setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -31,7 +32,7 @@ RestartApplications=no
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:"; Flags: unchecked
+Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:"
 Name: "explorer"; Description: "Add Inspect with BreakCheck to File Explorer"; GroupDescription: "File Explorer integration:"; Flags: unchecked
 
 [Files]

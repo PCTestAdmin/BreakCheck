@@ -7,6 +7,7 @@ on:
       - 'packaging/**'
       - 'tests/**'
       - 'pyproject.toml'
+      - 'Start-BreakCheck.cmd'
       - '.github/workflows/windows.yml'
   pull_request:
     paths:
@@ -14,6 +15,7 @@ on:
       - 'packaging/**'
       - 'tests/**'
       - 'pyproject.toml'
+      - 'Start-BreakCheck.cmd'
       - '.github/workflows/windows.yml'
   workflow_dispatch:
 permissions:
@@ -48,8 +50,8 @@ jobs:
         with:
           name: breakcheck-windows-x64
           path: |
-            release/*.exe
-            release/*.zip
+            release/BreakCheck-Setup.exe
+            release/BreakCheck-Portable.zip
             release/SHA256SUMS.txt
           if-no-files-found: error
   publish:
@@ -78,6 +80,6 @@ jobs:
             echo "Release $tag already exists; leaving existing assets unchanged."
             exit 0
           fi
-          gh release create "$tag" release/*.exe release/*.zip release/SHA256SUMS.txt \
-            --target "$GITHUB_SHA" --title "BreakCheck $VERSION" \
-            --notes "Windows x64 installer and portable package. Includes desktop and CLI binaries. Optional Explorer integration. SHA-256 checksums provided. Binaries are not code-signed. Early-stage read-only analyzer; review coverage before making changes."
+          gh release create "$tag" release/BreakCheck-Setup.exe release/BreakCheck-Portable.zip release/SHA256SUMS.txt \
+            --target "$GITHUB_SHA" --title "BreakCheck $VERSION" --latest \
+            --notes "New to BreakCheck? Download BreakCheck-Setup.exe and run it. No Python, terminal, or administrator rights required. Or extract BreakCheck-Portable.zip and open BreakCheck.exe. SHA-256 checksums are included. Binaries are unsigned. Windows x64; review scan coverage before making changes."

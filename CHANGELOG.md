@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1
+
+- Stable direct download links for the latest Windows installer and portable archive.
+- Shorter installation wizard, desktop shortcut selected by default, and launch on completion.
+- Double-click source launcher with Python detection and optional user-approved Python installation via WinGet.
+- Windows CI checks the source launcher and publishes stable asset names only after package smoke tests pass.
+- English installation instructions, update and uninstall guidance at the top of the README.
+
 ## 0.3.0
 
 - Interactive, bounded dependency graph using observed references, with clickable nodes.

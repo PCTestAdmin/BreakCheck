@@ -22,11 +22,15 @@ try {
     python -m PyInstaller --noconfirm --clean --onefile --console --noupx --name BreakCheckCLI --paths . packaging/cli_entry.py
     if ($LASTEXITCODE -ne 0) { throw 'CLI build failed' }
     New-Item -ItemType Directory -Force release | Out-Null
+    # Remove only known previous outputs, not unrelated user files.
+    @('release\BreakCheck-Setup.exe', 'release\BreakCheck-Portable.zip', 'release\SHA256SUMS.txt') | ForEach-Object {
+        if (Test-Path -LiteralPath $_) { Remove-Item -LiteralPath $_ -Force }
+    }
     & $Iscc "/DAppVersion=$version" packaging/BreakCheck.iss
     if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed' }
-    $portable = "release\BreakCheck-$version-windows-x64-portable.zip"
+    $portable = "release\BreakCheck-Portable.zip"
     Compress-Archive -Path dist\BreakCheck.exe,dist\BreakCheckCLI.exe,LICENSE,README.md -DestinationPath $portable -Force
-    $setup = "release\BreakCheck-$version-windows-x64-setup.exe"
+    $setup = "release\BreakCheck-Setup.exe"
     $lines = @($setup, $portable) | ForEach-Object {
         $hash = Get-FileHash -Algorithm SHA256 -LiteralPath $_
         '{0}  {1}' -f $hash.Hash.ToLowerInvariant(), (Split-Path $_ -Leaf)
