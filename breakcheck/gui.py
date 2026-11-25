@@ -8,6 +8,7 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from .core import scan, analyze
+from .views import InsightsView, apply_theme
 
 
 class App(tk.Tk):
@@ -27,6 +28,8 @@ class App(tk.Tk):
         self.rowconfigure(3, weight=1)
         header = ttk.Frame(self, padding=(20, 16))
         header.grid(row=0, column=0, sticky='ew')
+        self.dark = tk.BooleanVar(value=False)
+        ttk.Checkbutton(header, text='Dark mode', variable=self.dark, command=lambda: apply_theme(self, self.dark.get())).pack(side='right', anchor='n')
         ttk.Label(header, text='BreakCheck', font=('TkDefaultFont', 23, 'bold')).pack(anchor='w')
         ttk.Label(header, text='Know what breaks before you break it.').pack(anchor='w')
         ttk.Label(header, text='READ-ONLY SIMULATION • No scanned files are changed.').pack(anchor='w', pady=(5, 0))
@@ -84,6 +87,7 @@ class App(tk.Tk):
         scroll = ttk.Scrollbar(details, command=self.coverage.yview)
         scroll.grid(row=0, column=1, sticky='ns')
         self.coverage.configure(yscrollcommand=scroll.set)
+        self.insights = InsightsView(tabs)
         footer = ttk.Frame(self, padding=(20, 8, 20, 16))
         footer.grid(row=4, column=0, sticky='ew')
         footer.columnconfigure(0, weight=1)
@@ -91,6 +95,7 @@ class App(tk.Tk):
         self.export = ttk.Button(footer, text='Export JSON report', command=self.save, state='disabled')
         self.export.grid(row=0, column=1, sticky='e')
         self.sync_destination()
+        apply_theme(self, False)
         self.after(100, self.poll)
 
     def sync_destination(self):
@@ -117,6 +122,10 @@ class App(tk.Tk):
             messagebox.showwarning('Missing path', 'Choose a scan folder, target and destination when required.')
             return
         self.report = None
+        self.insights.clear()
+        self.coverage.configure(state='normal')
+        self.coverage.delete('1.0', 'end')
+        self.coverage.configure(state='disabled')
         self.export.configure(state='disabled')
         for item in self.tree.get_children():
             self.tree.delete(item)
@@ -153,6 +162,7 @@ class App(tk.Tk):
 
     def render(self, report):
         self.report = report
+        self.insights.render(report)
         self.summary.configure(text=f'{len(report.direct)} direct references • {len(report.indirect)} indirect dependents')
         def relative(path):
             return str(path.relative_to(report.scan.root)) if path.is_relative_to(report.scan.root) else str(path)

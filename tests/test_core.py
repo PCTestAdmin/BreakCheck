@@ -64,7 +64,7 @@ class CoreTests(unittest.TestCase):
 
     def test_unsupported_and_bad_data_reported(self):
         self.write('broken.json', '{')
-        self.write('video.prproj', 'not supported')
+        self.write('scene.blend', 'not supported')
         self.write('base.html', '<base href="/other/"><img src="assets/logo.png">')
         s = scan(self.root)
         self.assertEqual(s.unsupported, 2)

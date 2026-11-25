@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0
+
+- Interactive, bounded dependency graph using observed references, with clickable nodes.
+- Light and dark desktop themes.
+- Read-only candidate media inventory in the desktop interface and CLI.
+- SVG, Wavefront OBJ/MTL and experimental Premiere XML media path adapters with bounded reads.
+- Expanded GUI smoke test and adapter/inventory/graph unit tests.
+
 ## 0.2.0
 
 - Windows x64 standalone GUI and CLI build recipes using PyInstaller.

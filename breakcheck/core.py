@@ -6,12 +6,14 @@ import os
 import re
 import stat
 import zipfile
+import zlib
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 from xml.etree import ElementTree
+from .adapters import EXTENSIONS, read_references
 
 MAX_BYTES = 4 * 1024 * 1024
 MAX_REL_TOTAL = 16 * 1024 * 1024
@@ -41,6 +43,7 @@ class Scan:
     files_parsed: int = 0
     unsupported: int = 0
     skipped: int = 0
+    inventory: dict[Path, int] = field(default_factory=dict)
 
 @dataclass(frozen=True)
 class Impact:
@@ -91,7 +94,7 @@ def local_path(raw: str, base: Path, kind: str) -> tuple[Path, bool] | None:
         return None
     if parsed.netloc and parsed.netloc.lower() != 'localhost':
         return None
-    if kind == 'JSON' and not parsed.scheme:
+    if (kind == 'JSON' or kind.startswith('Wavefront') or kind.startswith('Premiere')) and not parsed.scheme:
         value = raw  # JSON paths may contain literal # and ? characters.
     else:
         value = unquote(parsed.path)
@@ -135,6 +138,9 @@ def strings(value):
 
 def extract(path: Path, warnings: list[str]):
     suffix = path.suffix.lower()
+    if suffix in EXTENSIONS:
+        yield from read_references(path, warnings)
+        return
     if suffix in OFFICE:
         with zipfile.ZipFile(path) as archive:
             rels = [i for i in archive.infolist() if i.filename.endswith('.rels')]
@@ -203,10 +209,12 @@ def scan(root: Path | str, max_files: int = 100_000) -> Scan:
             result.files_seen += 1
             path = Path(directory) / name
             try:
-                if not stat.S_ISREG(path.lstat().st_mode):
+                info = path.lstat()
+                if not stat.S_ISREG(info.st_mode):
                     result.skipped += 1
                     continue
-                if path.suffix.lower() not in TEXT | OFFICE:
+                result.inventory[path] = info.st_size
+                if path.suffix.lower() not in TEXT | OFFICE | EXTENSIONS:
                     result.unsupported += 1
                     continue
                 for raw, kind, line in extract(path, result.warnings):
@@ -225,7 +233,7 @@ def scan(root: Path | str, max_files: int = 100_000) -> Scan:
                         seen.add(ref)
                         result.references.append(ref)
                 result.files_parsed += 1
-            except (OSError, ValueError, RuntimeError, zipfile.BadZipFile, ElementTree.ParseError) as exc:
+            except (OSError, EOFError, ValueError, RuntimeError, zipfile.BadZipFile, zlib.error, ElementTree.ParseError) as exc:
                 result.skipped += 1
                 result.warnings.append(f'{path}: {exc}')
     return result

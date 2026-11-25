@@ -34,6 +34,12 @@ def run_desktop(inspect=None, root=None, self_test=False):
                 report = analyze(scan(folder), asset)
                 app.render(report)
                 app.update_idletasks()
+                if not app.insights.canvas.find_all():
+                    raise RuntimeError('Graph self-test failed.')
+                app.dark.set(True)
+                from .views import apply_theme
+                apply_theme(app, True)
+                app.update_idletasks()
                 if len(report.direct) != 1 or len(app.tree.get_children()) != 1:
                     raise RuntimeError('Desktop self-test failed.')
         finally:

@@ -25,6 +25,14 @@ Before deleting a shared asset, renaming a file, or reorganizing a project folde
 - JSON export and command-line interface for scripting.
 - Bounded text and Office relationship reads; no macros or document code executed.
 
+## New in v0.3.0
+
+- Interactive impact graph: observed file-to-file links, red predicted breaks, clickable nodes and bounded display size.
+- Light/dark desktop theme.
+- Unreferenced media inventory, sorted by file size. Candidates are not verified unused or safe to delete; entry-point files and dynamically loaded assets can appear here.
+- New adapters for SVG links, Wavefront OBJ material libraries and basic MTL texture maps, plus experimental plain/gzip Premiere Pro project media paths. Native Blender `.blend` parsing is not supported.
+- CLI inventory: `python -m breakcheck inventory examples/demo --json` (or `BreakCheckCLI.exe inventory examples/demo`).
+
 ## Windows downloads
 
 Get the installer or portable ZIP from [GitHub Releases](https://github.com/PCTestAdmin/BreakCheck/releases) after the Windows package workflow succeeds. Both include a standalone desktop executable and console CLI, with Python and Tk bundled. Windows 10 (1809+) and Windows 11 x64 are the target platforms.
@@ -80,11 +88,17 @@ Paths passed to `check` are relative to the scan root unless absolute. `--max-fi
 | JSON (`.json`) | Heuristic path-like string values resolving to existing files |
 | Office Open XML (`.xlsx`, `.docx`, `.pptx`, macro-enabled variants) | Local external relationship targets in `.rels` entries, resolved relative to the document directory |
 
+| SVG (`.svg`) | XML `href` and `xlink:href` links |
+| Wavefront (`.obj`, `.mtl`) | Simple material-library and texture-map paths; texture options and multiple libraries per line are not parsed |
+| Adobe Premiere Pro (`.prproj`) | Experimental UTF-8 plain/gzip XML media path fields; stored paths may be stale; no timeline/object graph interpretation |
+
 ## Important limitations
 
 BreakCheck is an early-stage static analyzer, not a deletion-safety guarantee. It only indexes existing references inside the chosen scan directory. Dependencies outside the scan root, dynamic references, unsupported files, symbolic-link aliases, junctions, server-root-relative web paths, HTML base URLs, CSS embedded in HTML, `srcset`, complex Markdown syntax, and some Office-specific links may be missed. Relative paths in JSON or Office files may use application-specific semantics; findings can be false positives. Only UTF-8 text is supported. No file watcher is active; rescan after changes.
 
 The tool skips `.git`, `.venv`, `node_modules`, `__pycache__`, symlink/junction directories, and non-regular files. Text files are capped at 4 MiB; Office relationship parts have per-entry and aggregate limits. Unsupported formats and skipped files are reported as coverage limitations. This is not a sandbox for hostile or concurrently modified directory trees; scan trusted local folders only.
+
+Premiere XML expansion is capped at 32 MiB. SVG/OBJ/MTL adapters use a 4 MiB limit. The asset inventory only covers selected media extensions, does not infer usage from applications, and excludes paths under detected directory references. The graph shows up to 60 nodes and 120 observed links; the impact table remains the full detected result. There is no persistent cache, and every scan is fresh.
 
 The simulator does not execute file operations, validate that a destination can be created, rewrite references, or guarantee application behavior. It does not consider all filesystem aliasing or case-only rename semantics. A move or rename may also affect files outside the selected directory. Export writes a new JSON file only when explicitly requested and refuses to overwrite an existing file.
 
@@ -104,9 +118,11 @@ To build on a Windows x64 machine with Python 3.12 and Inno Setup 6 installed, r
 ## Roadmap
 
 - [x] Windows Explorer context menu and standalone installer build pipeline (v0.2.0)
-- [ ] More format adapters: Blender, Adobe project files, Windows shortcuts
+- [x] SVG, Wavefront OBJ/MTL and experimental Premiere Pro project adapter (v0.3.0)
+- [ ] Native Blender project files, additional Adobe formats, Windows shortcuts
 - [ ] Persistent index, incremental scans, and scan cancellation
-- [ ] Dependency graph visualization and improved parser coverage
+- [x] Interactive dependency graph and media inventory (v0.3.0)
+- [ ] Improved parser coverage and graph filtering
 - [ ] Opt-in transactional reference rewriting with backups and undo
 
 Contributions are welcome. Please include a minimal reproducible example and tests when adding a format adapter.

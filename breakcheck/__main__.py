@@ -21,6 +21,10 @@ def main(argv=None):
     check.add_argument('--destination', type=Path, help='New path, relative to root or absolute')
     check.add_argument('--max-files', type=int, default=100000)
     check.add_argument('--json', action='store_true', help='Emit machine-readable JSON')
+    inventory = sub.add_parser('inventory', help='List media assets with no detected incoming references')
+    inventory.add_argument('root', type=Path)
+    inventory.add_argument('--max-files', type=int, default=100000)
+    inventory.add_argument('--json', action='store_true')
     args = parser.parse_args(argv)
     if args.command in (None, 'gui'):
         try:
@@ -32,6 +36,19 @@ def main(argv=None):
         return 0
     try:
         index = scan(args.root, args.max_files)
+        if args.command == 'inventory':
+            from .insights import candidates, NOTICE
+            rows = candidates(index)
+            if args.json:
+                print(json.dumps({'notice': NOTICE, 'root': str(index.root), 'candidates': [{'path': str(p), 'bytes': size} for p, size in rows], 'coverage': {'files_seen': index.files_seen, 'files_parsed': index.files_parsed, 'unsupported': index.unsupported, 'skipped': index.skipped, 'warnings': index.warnings}}, indent=2))
+            else:
+                print(NOTICE)
+                for path, size in rows:
+                    print(f'{size:>12,} bytes  {path}')
+                print(f'{len(rows)} candidates; {index.unsupported} unsupported files; {index.skipped} skipped entries')
+                for warning in index.warnings:
+                    print(f'Warning: {warning}')
+            return 0
         report = analyze(index, index.root / args.target, args.operation,
                          index.root / args.destination if args.destination else None)
     except (OSError, ValueError, RuntimeError) as exc:
