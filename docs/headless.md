@@ -66,3 +66,7 @@ Run `storage /path/to/folder --json` for machine-readable results. Optional `--o
 ## Guarded operations
 
 `guard preview /project old.txt --destination new.txt` outputs a risk report and confirmation token. Review it, close external editors, then run `guard apply /project old.txt --destination new.txt --confirm TOKEN`. `guard add-rule /project/important --mode block`, `guard rules`, and `guard remove-rule /project/important` manage local rules. Rules only affect this workflow. `guard preview /project old.txt --operation delete` is advisory. `update-check` makes an explicit GitHub release lookup. Linux requires atomic no-replace rename support.
+
+## Fleet reporting
+
+For centrally monitored Windows, Linux or terminal-server deployments, use the separate `fleet-agent` command. It does not require Tk, and it transmits aggregate counters only. Use an isolated `BREAKCHECK_STATE_DIR` per agent to avoid sharing a monitoring baseline with other BreakCheck processes. See [Fleet deployment](fleet.md) for enrollment, HTTPS and Docker setup.

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0
+
+- Optional self-hosted Fleet collector with authenticated web dashboard, latest-report status API and per-agent enrollment.
+- Windows/Linux headless fleet agent sends only aggregate project counts with explicit configuration; remote reporting requires HTTPS.
+- Latest-report SQLite storage, stale/partial/error indicators, Docker Compose and deployment documentation.
+- No remote file access or remote command execution.
+- Six fleet unit/integration tests, packaged CLI loopback tests on Windows/Linux and a Docker Compose smoke test.
+
 ## 1.0.0
 
 - Active Protection workspace with explicit risk previews, local block/warn path rules and no-overwrite guided file moves/renames on Windows and Linux.

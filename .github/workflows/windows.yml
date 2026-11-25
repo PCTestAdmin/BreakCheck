@@ -5,6 +5,7 @@ on:
     paths:
       - 'breakcheck/**'
       - 'packaging/**'
+      - 'deploy/**'
       - 'tests/**'
       - 'pyproject.toml'
       - 'Start-BreakCheck.cmd'
@@ -13,6 +14,7 @@ on:
     paths:
       - 'breakcheck/**'
       - 'packaging/**'
+      - 'deploy/**'
       - 'tests/**'
       - 'pyproject.toml'
       - 'Start-BreakCheck.cmd'
@@ -47,6 +49,10 @@ jobs:
         shell: pwsh
         timeout-minutes: 8
         run: ./packaging/smoke-windows.ps1
+      - name: Smoke test packaged Fleet server and agent
+        shell: pwsh
+        timeout-minutes: 3
+        run: python packaging/smoke-fleet.py dist/BreakCheckCLI.exe
       - name: Upload smoke test diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -76,6 +82,7 @@ jobs:
           python -m unittest discover -s tests -v
           python packaging/build-headless.py
           python release/BreakCheck.pyz --version
+          python packaging/smoke-fleet.py python release/BreakCheck.pyz
           BREAKCHECK_STATE_DIR="$RUNNER_TEMP/breakcheck-headless" python release/BreakCheck.pyz watch examples/demo --once --json --poll
           python release/BreakCheck.pyz duplicates examples/demo --json
           python release/BreakCheck.pyz storage examples/demo --json | python -c 'import json,sys; r=json.load(sys.stdin); assert r["files"] > 0 and r["complete"]'
@@ -109,9 +116,28 @@ jobs:
           name: breakcheck-headless
           path: release/BreakCheck.pyz
           if-no-files-found: error
+  fleet-container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build container and test local dashboard
+        shell: bash
+        run: |
+          set -euo pipefail
+          admin=$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')
+          agent=$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')
+          printf 'BREAKCHECK_ADMIN_TOKEN=%s\nBREAKCHECK_AGENT_TOKENS={"smoke":"%s"}\n' "$admin" "$agent" > deploy/fleet.env
+          trap 'docker compose -f deploy/compose.yaml down -v; rm -f deploy/fleet.env' EXIT
+          docker compose -f deploy/compose.yaml up -d --build
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 3 -H "Authorization: Bearer $admin" http://127.0.0.1:8765/api/v1/status > /tmp/fleet-status.json; then break; fi
+            sleep 1
+          done
+          python3 -c 'import json; assert json.load(open("/tmp/fleet-status.json"))["agents"][0]["status"] == "Never seen"'
   publish:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    needs: [build, headless]
+    needs: [build, headless, fleet-container]
     runs-on: ubuntu-latest
     permissions:
       contents: write

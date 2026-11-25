@@ -1,0 +1,20 @@
+services:
+  fleet:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    env_file: fleet.env
+    ports:
+      - "127.0.0.1:8765:8765"
+    volumes:
+      - fleet-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+volumes:
+  fleet-data:

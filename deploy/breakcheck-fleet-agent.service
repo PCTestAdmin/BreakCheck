@@ -1,0 +1,18 @@
+[Unit]
+Description=BreakCheck Fleet reporting agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/breakcheck/agent.env
+Environment=BREAKCHECK_STATE_DIR=%h/.local/share/breakcheck-fleet
+# Replace example values before installing.
+ExecStart=/usr/bin/python3 %h/.local/share/BreakCheck.pyz fleet-agent /path/to/project --id office-01 --server https://fleet.example.internal --interval 60
+Restart=on-failure
+RestartSec=30
+NoNewPrivileges=true
+UMask=0077
+
+[Install]
+WantedBy=default.target

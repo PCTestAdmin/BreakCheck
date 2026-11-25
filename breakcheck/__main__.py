@@ -30,7 +30,7 @@ def main(argv=None):
     from .agent import add_commands, dispatch
     add_commands(sub)
     args = parser.parse_args(argv)
-    if args.command in ('watch', 'monitor-config', 'duplicates', 'recovery', 'repair', 'storage', 'guard', 'update-check'):
+    if args.command in ('watch', 'monitor-config', 'duplicates', 'recovery', 'repair', 'storage', 'guard', 'update-check', 'fleet-agent', 'fleet-server'):
         return dispatch(args)
     if args.command in (None, 'gui'):
         try:

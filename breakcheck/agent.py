@@ -220,6 +220,17 @@ def add_commands(sub):
     watch.add_argument('--json', action='store_true', help='Emit JSON lines')
     watch.add_argument('--backup', action='store_true', help='Opt in to saving local file versions')
     watch.add_argument('--quota-mib', type=int, choices=range(1,4097), metavar='1-4096', default=256)
+    fleet = sub.add_parser('fleet-agent',help='Opt in to sending aggregate project reports to a self-hosted server')
+    fleet.add_argument('folders',nargs='+',type=Path)
+    fleet.add_argument('--server',required=True)
+    fleet.add_argument('--id',required=True)
+    fleet.add_argument('--interval',type=int,default=60)
+    fleet.add_argument('--once',action='store_true')
+    server = sub.add_parser('fleet-server',help='Run the authenticated fleet dashboard and collector')
+    server.add_argument('--host',default='127.0.0.1')
+    server.add_argument('--port',type=int,default=8765)
+    server.add_argument('--db',type=Path,default=state_path().parent/'fleet.sqlite3')
+    server.add_argument('--trusted-proxy',action='store_true',help='Allow non-loopback binding on a private reverse-proxy network only')
     protection = sub.add_parser('guard',help='Review or execute a guarded single-file operation')
     commands = protection.add_subparsers(dest='action',required=True)
     for action in ('preview','apply'):
@@ -289,6 +300,12 @@ def dispatch(args):
                 save_preferences(prefs)
             print(json.dumps(asdict(prefs)))
             return 0
+        if args.command == 'fleet-agent':
+            from .fleet import agent_command
+            return agent_command(args)
+        if args.command == 'fleet-server':
+            from .fleet_server import serve
+            return serve(args)
         if args.command == 'update-check':
             from .updates import check_update
             print(json.dumps(check_update()))

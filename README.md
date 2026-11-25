@@ -32,6 +32,8 @@ A local file safety assistant. Monitor project changes, detect previously known 
 
 **Guard a file operation:** Open Protection or right-click a file in Explorer and choose **Guarded move with BreakCheck** (optional installer integration). Set the project and destination, check risks, then explicitly confirm. Local block/warn rules apply only to this guided workflow. Delete review is advisory; BreakCheck does not delete files. Optional startup update checks query GitHub for release metadata only.
 
+**Monitor multiple devices:** Deploy the optional self-hosted Fleet collector, enroll each endpoint with its own token, and run the headless fleet agent. The authenticated dashboard shows latest aggregate counts, scan coverage and last report times. No file paths or content are submitted. See [Fleet deployment](docs/fleet.md).
+
 ## Features
 
 - Safety Center with a persistent local index, change history and after-the-fact broken-link alerts.
@@ -42,6 +44,7 @@ A local file safety assistant. Monitor project changes, detect previously known 
 - Read-only delete, move and rename simulations.
 - Guarded same-volume single-file moves and renames with block/warn rules, no destination overwrite and explicit confirmation.
 - Optional startup release checks; no automatic installation.
+- Optional self-hosted fleet monitoring for Windows and Linux, authenticated web dashboard and JSON status API.
 - Direct and indirect dependency detection with an interactive graph.
 - Media files with no detected incoming references.
 - Dark mode, JSON reports and a command-line interface.
@@ -76,6 +79,10 @@ Only literal quoted relative HTML link attributes and relative JSON string value
 ### Storage limits
 
 Storage uses a single metadata traversal (no file-content hashing or dependency parsing) and defaults to 500,000 directory entries; CLI limits can be set from 1 to 2,000,000. Protected, excluded, linked and other-volume entries are skipped and coverage is reported as partial. Logical sizes count each observed hard link and may differ from actual allocated space; volume free space is a separate OS measurement. Modification age is not last-access age. Size and age are review hints, not proof that a file is unused. Results are not an atomic snapshot. No cleanup is automatic.
+
+### Fleet limitations
+
+Fleet is disabled unless explicitly launched. Agent IDs, version, folder/file/byte counts, known broken-link counts, coverage/error counts and report timing are sent to a server selected by the operator; the server and proxy can also see network metadata. Only the latest report per enrolled agent is retained. No file paths, names or contents are sent. Use dedicated agent state and HTTPS for network deployment. The small collector is intended for trusted, private environments behind a reverse proxy; it is not a hardened public SaaS or remote management platform. No remote commands, central policy enforcement, SSO or webhooks are implemented yet.
 
 ## Linux / terminal sessions
 
