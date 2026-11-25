@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.2
+
+- Bound every Windows smoke-test process with a timeout and log each step.
+- Catch windowed desktop self-test errors without modal dialogs and save diagnostic files.
+- Preserve installer and uninstaller diagnostics as CI artifacts; cancel obsolete Windows builds.
+- Keep release publication gated on successful package tests.
+
 ## 0.3.1
 
 - Stable direct download links for the latest Windows installer and portable archive.

@@ -22,12 +22,12 @@ def launch_paths(inspect=None, root=None):
 def run_desktop(inspect=None, root=None, self_test=False):
     from .gui import App
     from .core import scan, analyze
-    app = App()
+    app = App(self_test=self_test)
     if self_test:
         app.withdraw()
         try:
             with tempfile.TemporaryDirectory() as directory:
-                folder = Path(directory)
+                folder = Path(directory).resolve()
                 asset = folder / 'asset.png'
                 asset.write_bytes(b'demo')
                 (folder / 'index.html').write_text('<img src="asset.png">', encoding='utf-8')

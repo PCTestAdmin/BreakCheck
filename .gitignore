@@ -9,3 +9,5 @@ dist/
 
 release/
 *.spec
+
+smoke-logs/

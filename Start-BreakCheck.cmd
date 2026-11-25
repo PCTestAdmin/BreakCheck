@@ -6,6 +6,7 @@ if not exist "breakcheck\__main__.py" goto missing
 set "CHECK_ONLY=0"
 if /i "%~1"=="--check" set "CHECK_ONLY=1"
 set "INSTALL_TRIED=0"
+if "%CHECK_ONLY%"=="1" goto ci_check
 
 :detect
 set "PY_EXE=py.exe"
@@ -79,6 +80,16 @@ if errorlevel 1 (
     goto fail
 )
 goto done
+
+:ci_check
+rem CI uses the Python selected by actions/setup-python. Never open the Store.
+set "PY_EXE=python.exe"
+set "PY_ARGS="
+where python.exe >nul 2>&1
+if errorlevel 1 goto fail
+call :probe
+if errorlevel 1 goto fail
+goto launch
 
 :probe
 "%PY_EXE%" %PY_ARGS% -c "import sys, tkinter; sys.exit(0 if sys.version_info >= (3, 10) else 1)" >nul 2>&1

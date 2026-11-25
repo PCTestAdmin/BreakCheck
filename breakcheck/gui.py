@@ -12,8 +12,10 @@ from .views import InsightsView, apply_theme
 
 
 class App(tk.Tk):
-    def __init__(self):
+    def __init__(self, self_test=False):
         super().__init__()
+        if self_test:
+            self.withdraw()
         self.title('BreakCheck — File dependency inspector')
         self.geometry('1050x700')
         self.minsize(760, 550)
@@ -96,7 +98,8 @@ class App(tk.Tk):
         self.export.grid(row=0, column=1, sticky='e')
         self.sync_destination()
         apply_theme(self, False)
-        self.after(100, self.poll)
+        if not self_test:
+            self.after(100, self.poll)
 
     def sync_destination(self):
         self.dest_entry.configure(state='disabled' if self.operation.get() == 'delete' else 'normal')
