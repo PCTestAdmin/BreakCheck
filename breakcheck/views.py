@@ -176,5 +176,7 @@ def apply_theme(app, dark):
         style.configure(f'{axis}.TScrollbar', background=border, troughcolor=bg, arrowcolor=muted,
                         bordercolor=bg, lightcolor=border, darkcolor=border, arrowsize=13)
     app.coverage.configure(background=panel, foreground=fg, insertbackground=fg, relief='flat', borderwidth=0)
+    if hasattr(app, 'repair'):
+        app.repair.diff.configure(background=panel, foreground=fg, insertbackground=fg, relief='flat', borderwidth=0)
     app.insights.dark = dark
     app.insights.draw()

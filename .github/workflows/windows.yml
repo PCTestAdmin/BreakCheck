@@ -88,6 +88,12 @@ jobs:
           python release/BreakCheck.pyz recovery restore "$version" "$project/original.txt"
           test "$(cat "$project/original.txt")" = 'recovery test'
           if python release/BreakCheck.pyz recovery restore "$version" "$project/original.txt"; then exit 1; fi
+          printf '<img src="missing.png">' > "$project/index.html"
+          token=$(python release/BreakCheck.pyz repair preview "$project" index.html missing.png original.txt | python -c 'import json,sys; print(json.load(sys.stdin)["confirm"])')
+          repair=$(python release/BreakCheck.pyz repair apply "$project" index.html missing.png original.txt --confirm "$token" | python -c 'import json,sys; print(json.load(sys.stdin)["repair_id"])')
+          grep -q 'original.txt' "$project/index.html"
+          python release/BreakCheck.pyz repair undo "$repair" --yes
+          grep -q 'missing.png' "$project/index.html"
           set +e
           python release/BreakCheck.pyz check examples/demo assets/logo.svg --json
           code=$?

@@ -54,3 +54,7 @@ Set `BREAKCHECK_STATE_DIR` to an absolute writable directory outside all monitor
 ## Optional file recovery
 
 Use `watch /path/to/project --backup --quota-mib 256` to explicitly opt in to automatic file versions for that terminal process. Or use `recovery capture /path/to/project`, `recovery list`, and `recovery restore VERSION /path/to/new-file`. All commands also work with `python3 BreakCheck.pyz`. The recovery database contains unencrypted file content. It has bounded content limits; see the [README](../README.md#recovery-limits). Existing files are never overwritten. No automatic deletion or pruning.
+
+## Link repair
+
+Run `repair suggest /path/to/project` for historical move hints. Preview with `repair preview /path/to/project index.html old.png new.png`, then review the JSON diff. To apply, run `repair apply /path/to/project index.html old.png new.png --confirm TOKEN` using the exact preview token. Run `repair history` to obtain the ID, then `repair undo ID --yes` to revert an unchanged repaired file. Close external editors before apply or undo. See README for supported formats and limitations.

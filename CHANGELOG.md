@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.0
+
+- Smart Link Repair with historical move hints, exact diff preview, explicit confirmation and persistent undo.
+- Conservative UTF-8 HTML/JSON relative-path repair and stale-preview rejection.
+- Headless repair suggest/preview/apply/history/undo commands.
+- Seven new repair regression tests and expanded packaged desktop and Linux zipapp smoke tests.
+
 ## 0.7.0
 
 - Smart Recovery workspace with manual or opt-in automatic bounded local content versions and no-overwrite integrity-checked restoration.

@@ -71,6 +71,7 @@ class SafetyCenter:
         self.panes = panes
         panes.grid(row=5,column=0,sticky='nsew')
         self.alerts = self.table(panes,'Broken links',('Dependent file','Missing target','Possible new location'))
+        self.alerts.bind('<Double-1>', self.open_repair)
         self.history = self.table(panes,'Activity',('Time','Change','Path','Details'))
         self.dupes = self.table(panes,'Duplicates',('Group','File','Size','References','Review'))
         self.largest = self.table(panes,'Largest files',('File','Logical size'))
@@ -90,6 +91,12 @@ class SafetyCenter:
         self.controls()
         if not self_test:
             app.after(150, self.poll)
+
+    def open_repair(self, event=None):
+        selected = self.alerts.selection()
+        if selected and self.display_root is not None:
+            source, old, new = self.alerts.item(selected[0], 'values')
+            self.app.repair.open_link(self.display_root, source, old, new)
 
     def table(self, panes, title, columns):
         frame = ttk.Frame(panes)

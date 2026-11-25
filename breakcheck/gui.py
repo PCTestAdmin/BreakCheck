@@ -12,6 +12,7 @@ from .views import InsightsView, apply_theme
 from .dashboard import SafetyCenter
 from .layout import Pages
 from .recovery_view import RecoveryView
+from .repair_view import RepairView
 from . import __version__
 
 
@@ -108,10 +109,11 @@ class App(tk.Tk):
         self.insights = InsightsView(tabs)
         self.safety = SafetyCenter(self, tabs, self_test)
         self.recovery = RecoveryView(self, tabs, self_test)
+        self.repair = RepairView(self, tabs, self_test)
         footer = ttk.Frame(self, style='Header.TFrame', padding=(18, 8))
         footer.grid(row=2, column=0, sticky='ew')
         ttk.Label(footer, textvariable=self.status, style='HeaderCaption.TLabel', wraplength=950).pack(side='left')
-        ttk.Label(footer, text='No automatic deletion or overwrite', style='HeaderCaption.TLabel').pack(side='right')
+        ttk.Label(footer, text='Changes only with explicit confirmation', style='HeaderCaption.TLabel').pack(side='right')
         self.sync_destination()
         apply_theme(self, self.dark.get())
         if not self_test:

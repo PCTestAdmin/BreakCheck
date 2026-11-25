@@ -71,6 +71,18 @@ def run_desktop(inspect=None, root=None, self_test=False, background=False):
                 app.recovery.render_capture(capture, vault.versions())
                 if capture.saved != 3 or len(app.recovery.tree.get_children()) != 3:
                     raise RuntimeError('Recovery workspace self-test failed')
+                from .repair import plan_repair, RepairJournal, suggestions
+                plan = plan_repair(folder,'index.html','asset.png','moved.png')
+                if len(suggestions(folder,state.db)) != 1:
+                    raise RuntimeError('Repair suggestion failed')
+                app.repair.render_plan(plan)
+                journal = RepairJournal(Path(directory) / 'state' / 'repairs.sqlite3')
+                ident = journal.apply(plan,plan.token)
+                if b'moved.png' not in (folder / 'index.html').read_bytes():
+                    raise RuntimeError('Repair apply failed')
+                journal.undo(ident)
+                if (folder / 'index.html').read_bytes() != plan.before:
+                    raise RuntimeError('Repair undo failed')
                 for page in app.tabs.pages:
                     app.tabs.select(page)
                     app.update_idletasks()

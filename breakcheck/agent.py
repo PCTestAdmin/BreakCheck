@@ -216,6 +216,20 @@ def add_commands(sub):
     watch.add_argument('--json', action='store_true', help='Emit JSON lines')
     watch.add_argument('--backup', action='store_true', help='Opt in to saving local file versions')
     watch.add_argument('--quota-mib', type=int, choices=range(1,4097), metavar='1-4096', default=256)
+    repair = sub.add_parser('repair', help='Preview, apply or undo supported link repairs')
+    repairs = repair.add_subparsers(dest='action', required=True)
+    hint = repairs.add_parser('suggest')
+    hint.add_argument('root', type=Path)
+    for action in ('preview','apply'):
+        cmd = repairs.add_parser(action)
+        for name in ('root','source','old','new'):
+            cmd.add_argument(name, type=Path)
+        if action == 'apply':
+            cmd.add_argument('--confirm', required=True, help='Exact token from preview')
+    repairs.add_parser('history')
+    undo = repairs.add_parser('undo')
+    undo.add_argument('id', type=int)
+    undo.add_argument('--yes', action='store_true', required=True)
     rec = sub.add_parser('recovery', help='Capture, list or restore saved file versions')
     actions = rec.add_subparsers(dest='action', required=True)
     capture = actions.add_parser('capture')
@@ -247,6 +261,22 @@ def dispatch(args):
                 prefs.root = ''
                 save_preferences(prefs)
             print(json.dumps(asdict(prefs)))
+            return 0
+        if args.command == 'repair':
+            from .repair import plan_repair, suggestions, RepairJournal
+            journal = RepairJournal()
+            if args.action == 'suggest':
+                print(json.dumps(suggestions(args.root), indent=2))
+            elif args.action == 'history':
+                print(json.dumps(journal.entries(), indent=2))
+            elif args.action == 'undo':
+                print(journal.undo(args.id))
+            else:
+                plan = plan_repair(args.root,args.source,args.old,args.new)
+                if args.action == 'preview':
+                    print(json.dumps({'diff':plan.preview(),'replacements':plan.replacements,'confirm':plan.token},indent=2))
+                else:
+                    print(json.dumps({'repair_id':journal.apply(plan,args.confirm)}))
             return 0
         if args.command == 'recovery':
             store = RecoveryStore()

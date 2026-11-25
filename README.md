@@ -2,7 +2,7 @@
 
 **Know what breaks before you break it.**
 
-A local file safety assistant. Monitor project changes, detect previously known links that break after files move or disappear, find duplicate files, and check what may break before reorganizing a folder. Scans never modify source files; recovery writes a new file only on explicit request.
+A local file safety assistant. Monitor project changes, detect previously known links that break after files move or disappear, find duplicate files, and check what may break before reorganizing a folder. Scans never modify source files. Recovery and link repair require explicit user actions.
 
 [![Download for Windows](https://img.shields.io/badge/Download%20for%20Windows-0078D4?style=for-the-badge&logo=windows)](https://github.com/PCTestAdmin/BreakCheck/releases/latest/download/BreakCheck-Setup.exe)
 
@@ -26,11 +26,14 @@ A local file safety assistant. Monitor project changes, detect previously known 
 
 **Before moving or deleting:** Open Impact analysis, select a target, choose the operation and click **Analyze impact**. Review the results and coverage. Windows setup also offers an optional **Inspect with BreakCheck** Explorer context menu.
 
+**Repair a link:** Double-click a broken link in Overview or open Link repair. Check the suggested replacement or choose one manually, review the diff, then confirm. Repair history allows undo if the repaired file has not changed.
+
 ## Features
 
 - Safety Center with a persistent local index, change history and after-the-fact broken-link alerts.
 - Reference-aware SHA-256 duplicate finder; excludes hard links.
 - Opt-in local version history and integrity-checked copy-out recovery.
+- Previewed link repair and persistent undo for supported UTF-8 HTML and JSON relative paths.
 - Read-only delete, move and rename simulations.
 - Direct and indirect dependency detection with an interactive graph.
 - Media files with no detected incoming references.
@@ -51,13 +54,17 @@ A local file safety assistant. Monitor project changes, detect previously known 
 
 BreakCheck is a static analyzer, not a guarantee that deleting a file is safe. It detects supported, existing references within the selected scan folder. Dynamic links, unsupported formats and references outside that folder may be missed. Files listed as unreferenced may still be in use. Review warnings, scan trusted folders and keep backups.
 
-Monitoring is opt-in and runs while the desktop process or terminal watcher is alive. It uses optional filesystem events with periodic full reconciliation; if events are unavailable it checks every 60 seconds. It does not intercept or prevent Windows file operations or repair links. It detects changes between snapshots, not every filesystem event; possible moves are inferred from matching metadata. Only previously observed references whose source metadata is unchanged are flagged as broken. The first scan cannot find historical breakage. Incomplete inventory scans preserve the previous baseline and do not generate deletion alerts. Scans are capped at 100,000 files; duplicate hashing has a 4 GiB per-run budget. Reported duplicate sizes are logical file sizes, not guaranteed reclaimable disk space.
+Monitoring is opt-in and runs while the desktop process or terminal watcher is alive. It uses optional filesystem events with periodic full reconciliation; if events are unavailable it checks every 60 seconds. It does not intercept or prevent Windows file operations. It detects changes between snapshots, not every filesystem event; possible moves are inferred from matching metadata. Only previously observed references whose source metadata is unchanged are flagged as broken. The first scan cannot find historical breakage. Incomplete inventory scans preserve the previous baseline and do not generate deletion alerts. Scans are capped at 100,000 files; duplicate hashing has a 4 GiB per-run budget. Reported duplicate sizes are logical file sizes, not guaranteed reclaimable disk space.
 
 The local SQLite database stores paths, file metadata, observed dependencies and up to 1,000 recent events per monitored folder (no file contents). On Windows it lives at `%LOCALAPPDATA%/BreakCheck/safety.sqlite3`; close the app before removing it to clear history. Choose project folders outside the database directory; scanning a folder that contains this directory is not supported for monitoring. No automatic startup unless explicitly enabled, cloud upload or system-wide monitoring.
 
 ### Recovery limits
 
 Recovery is disabled by default. The separate `recovery.sqlite3` stores file contents locally, unencrypted by BreakCheck. The default total content budget is 256 MiB (configurable from 1–4096 MiB); SQLite overhead is extra. Individual files are limited to 16 MiB, with a 128 MiB read budget per capture and 20,000 versions in total. A full vault stops accepting new versions; old versions are never automatically pruned. Close all BreakCheck processes before manually removing the recovery database. Keep independent backups: files lost before a successful capture or between checks cannot be recovered. Restore verifies SHA-256 and atomically creates a new file using a hard link to a staged copy; the destination filesystem must support hard links. No existing file is replaced.
+
+### Link repair limits
+
+Only literal quoted relative HTML link attributes and relative JSON string values in UTF-8 files up to 4 MiB are supported. HTML base URLs, complex URLs, absolute paths, symlinks, hard-linked sources and other formats are not automatically repaired. Move hints are inferred from history and must be verified. JSON strings may have other meanings, so review the diff. Close external editors and other processes that write the source before applying or undoing: atomic replacement is not a filesystem compare-and-swap and may change metadata, ownership, ACLs or extended attributes. The separate private `repairs.sqlite3` journal saves original and repaired contents (unencrypted, 128 MiB content budget, 1,000 entries); no automatic pruning. Undo refuses changed files. The journal is not a substitute for independent backups.
 
 ## Linux / terminal sessions
 
