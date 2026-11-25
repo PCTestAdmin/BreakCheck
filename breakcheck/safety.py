@@ -20,6 +20,18 @@ def state_path():
     return base / 'BreakCheck' / 'safety.sqlite3'
 
 
+def encode_device(value):
+    # Prefix prevents SQLite INTEGER affinity from coercing large numeric text
+    # to an imprecise REAL in databases created by v0.4.0.
+    return f'd:{value}'
+
+
+def decode_device(value):
+    if isinstance(value, str) and value.startswith('d:'):
+        return int(value[2:])
+    return int(value)  # Existing snapshots stored signed-64-bit integers.
+
+
 def stamp(info):
     return info.st_size, info.st_mtime_ns, info.st_dev, info.st_ino, info.st_nlink
 
@@ -82,7 +94,7 @@ class SafetyIndex:
         conn = sqlite3.connect(self.db, timeout=10)
         try:
             conn.executescript('''CREATE TABLE IF NOT EXISTS roots (root TEXT PRIMARY KEY, captured INTEGER);
-              CREATE TABLE IF NOT EXISTS files (root TEXT, path TEXT, size INTEGER, mtime INTEGER, dev INTEGER, ino TEXT, links INTEGER, PRIMARY KEY(root,path));
+              CREATE TABLE IF NOT EXISTS files (root TEXT, path TEXT, size INTEGER, mtime INTEGER, dev TEXT, ino TEXT, links INTEGER, PRIMARY KEY(root,path));
               CREATE TABLE IF NOT EXISTS refs (root TEXT, source TEXT, target TEXT, PRIMARY KEY(root,source,target));
               CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY, root TEXT, time INTEGER, action TEXT, path TEXT, detail TEXT);''')
             key = str(root)
@@ -90,7 +102,7 @@ class SafetyIndex:
             last = conn.execute('SELECT captured FROM roots WHERE root=?', (key,)).fetchone()
             if last and last[0] >= started:
                 raise RuntimeError('A newer snapshot already exists; refresh again.')
-            old = {p: (s, m, d, int(i), n) for p,s,m,d,i,n in conn.execute('SELECT path,size,mtime,dev,ino,links FROM files WHERE root=?', (key,))}
+            old = {p: (s, m, decode_device(d), int(i), n) for p,s,m,d,i,n in conn.execute('SELECT path,size,mtime,dev,ino,links FROM files WHERE root=?', (key,))}
             old_refs = set(conn.execute('SELECT source,target FROM refs WHERE root=?', (key,)))
             # Retain a previously observed link only while its source has not changed
             # and its target is genuinely missing. Edited sources must be re-parsed.
@@ -120,7 +132,7 @@ class SafetyIndex:
             conn.executemany('INSERT INTO history(root,time,action,path,detail) VALUES(?,?,?,?,?)', [(key,now,*e) for e in events])
             conn.execute('DELETE FROM history WHERE root=? AND id NOT IN (SELECT id FROM history WHERE root=? ORDER BY id DESC LIMIT 1000)', (key,key))
             conn.execute('DELETE FROM files WHERE root=?', (key,))
-            conn.executemany('INSERT INTO files VALUES(?,?,?,?,?,?,?)', [(key,p,s,m,d,str(i),n) for p,(s,m,d,i,n) in current.items()])
+            conn.executemany('INSERT INTO files VALUES(?,?,?,?,?,?,?)', [(key,p,s,m,encode_device(d),str(i),n) for p,(s,m,d,i,n) in current.items()])
             conn.execute('DELETE FROM refs WHERE root=?', (key,))
             conn.executemany('INSERT INTO refs VALUES(?,?,?)', [(key,s,t) for s,t in sorted(refs)])
             conn.execute('INSERT OR REPLACE INTO roots VALUES(?,?)', (key,started))

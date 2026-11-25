@@ -1,4 +1,5 @@
 import os
+import sqlite3
 from pathlib import Path
 import tempfile
 import unittest
@@ -78,6 +79,30 @@ class SafetyTests(unittest.TestCase):
         except OSError:
             self.skipTest('Hard links unavailable')
         self.assertEqual(duplicates(self.root), ([],0))
+
+    def test_large_device_id_round_trip_with_legacy_schema(self):
+        self.write('asset.png', b'demo')
+        self.write('index.html', b'<img src="asset.png">')
+        self.index.refresh(self.root)
+        # Recreate the v0.4.0 INTEGER-affinity column, with valid legacy rows.
+        with sqlite3.connect(self.db) as db:
+            db.execute('ALTER TABLE files RENAME TO old_files')
+            db.execute('CREATE TABLE files (root TEXT, path TEXT, size INTEGER, mtime INTEGER, dev INTEGER, ino TEXT, links INTEGER, PRIMARY KEY(root,path))')
+            db.execute('INSERT INTO files SELECT root,path,size,mtime,42,ino,links FROM old_files')
+            db.execute('DROP TABLE old_files')
+        from breakcheck.safety import inventory
+        real = inventory(self.root)
+        large = (1 << 64) - 59
+        simulated = {p: (s,m,large,i,n) for p,(s,m,d,i,n) in real.items()}
+        with patch('breakcheck.safety.inventory', return_value=simulated):
+            self.index.refresh(self.root)
+            second = self.index.refresh(self.root)
+            # No duplicate change events on the second scan: identity is exact.
+            self.assertEqual(len(second.history), len(real))
+            with sqlite3.connect(self.db) as db:
+                values = db.execute('SELECT dev,typeof(dev) FROM files').fetchall()
+                self.assertEqual(values, [(f'd:{large}', 'text')] * len(real))
+            self.assertFalse(second.alerts)
 
     def test_database_must_be_outside_folder(self):
         with self.assertRaises(ValueError):

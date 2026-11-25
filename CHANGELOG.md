@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.1
+
+- Fix SQLite integer overflow on Windows by storing filesystem device identifiers as lossless prefixed text, compatible with existing snapshots.
+- Add a regression test for unsigned 64-bit device IDs and legacy SQLite column affinity.
+
 ## 0.4.0
 
 - Safety Center: opt-in periodic folder monitoring while the app is open.
