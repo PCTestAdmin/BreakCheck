@@ -216,6 +216,12 @@ def add_commands(sub):
     watch.add_argument('--json', action='store_true', help='Emit JSON lines')
     watch.add_argument('--backup', action='store_true', help='Opt in to saving local file versions')
     watch.add_argument('--quota-mib', type=int, choices=range(1,4097), metavar='1-4096', default=256)
+    storage = sub.add_parser('storage', help='Analyze logical sizes without reading file contents')
+    storage.add_argument('folder', type=Path)
+    storage.add_argument('--max-entries', type=int, default=500000)
+    storage.add_argument('--older-days', type=int, default=180)
+    storage.add_argument('--min-mib', type=int, default=100)
+    storage.add_argument('--json', action='store_true')
     repair = sub.add_parser('repair', help='Preview, apply or undo supported link repairs')
     repairs = repair.add_subparsers(dest='action', required=True)
     hint = repairs.add_parser('suggest')
@@ -262,6 +268,22 @@ def dispatch(args):
                 save_preferences(prefs)
             print(json.dumps(asdict(prefs)))
             return 0
+        if args.command == 'storage':
+            from .storage import analyze_storage, human_size
+            report = analyze_storage(args.folder, args.max_entries, args.older_days, args.min_mib*MIB)
+            if args.json:
+                print(json.dumps(report.as_dict(), indent=2))
+            else:
+                print(f'{report.root}: {report.files:,} files; {human_size(report.logical_bytes)} logical size')
+                print('Complete observed scope' if report.complete else 'Partial coverage')
+                for row in report.folders[:20]:
+                    print(f'{human_size(row["bytes"]):>14}  {row["name"]}')
+                print('Review candidates (not deletion recommendations):')
+                for row in report.review[:20]:
+                    print(f'{human_size(row["bytes"]):>14}  {row["modified_days_ago"]:>6} days  {row["path"]}')
+                for warning in report.warnings:
+                    print(f'WARNING: {warning}')
+            return 0 if report.complete else 1
         if args.command == 'repair':
             from .repair import plan_repair, suggestions, RepairJournal
             journal = RepairJournal()

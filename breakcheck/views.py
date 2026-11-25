@@ -178,5 +178,7 @@ def apply_theme(app, dark):
     app.coverage.configure(background=panel, foreground=fg, insertbackground=fg, relief='flat', borderwidth=0)
     if hasattr(app, 'repair'):
         app.repair.diff.configure(background=panel, foreground=fg, insertbackground=fg, relief='flat', borderwidth=0)
+    if hasattr(app, 'storage'):
+        app.storage.draw()
     app.insights.dark = dark
     app.insights.draw()

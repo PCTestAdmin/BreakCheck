@@ -58,3 +58,7 @@ Use `watch /path/to/project --backup --quota-mib 256` to explicitly opt in to au
 ## Link repair
 
 Run `repair suggest /path/to/project` for historical move hints. Preview with `repair preview /path/to/project index.html old.png new.png`, then review the JSON diff. To apply, run `repair apply /path/to/project index.html old.png new.png --confirm TOKEN` using the exact preview token. Run `repair history` to obtain the ID, then `repair undo ID --yes` to revert an unchanged repaired file. Close external editors before apply or undo. See README for supported formats and limitations.
+
+## Storage intelligence
+
+Run `storage /path/to/folder --json` for machine-readable results. Optional `--older-days 365 --min-mib 500` filters review candidates; `--max-entries 1000000` increases the traversal limit. Exit code 1 indicates partial coverage or an error. Logical size is not reclaimable disk space. No source files are modified.

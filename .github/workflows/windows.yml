@@ -78,6 +78,7 @@ jobs:
           python release/BreakCheck.pyz --version
           BREAKCHECK_STATE_DIR="$RUNNER_TEMP/breakcheck-headless" python release/BreakCheck.pyz watch examples/demo --once --json --poll
           python release/BreakCheck.pyz duplicates examples/demo --json
+          python release/BreakCheck.pyz storage examples/demo --json | python -c 'import json,sys; r=json.load(sys.stdin); assert r["files"] > 0 and r["complete"]'
           export BREAKCHECK_STATE_DIR="$RUNNER_TEMP/breakcheck-recovery"
           project="$RUNNER_TEMP/recovery-project"
           mkdir -p "$project"

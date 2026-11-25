@@ -105,6 +105,9 @@ def main():
         if original.read_bytes() != b'recovery smoke test':
             raise RuntimeError('Packaged recovery restore mismatch')
         run('packaged recovery no overwrite', [cli, 'recovery', 'restore', rows[0]['id'], original], expected=1, env=headless_env)
+    storage = json.loads(run('packaged storage scan', [cli, 'storage', 'examples/demo', '--json'], capture=True, env=headless_env))
+    if not storage['complete'] or storage['files'] < 1 or storage['logical_bytes'] <= 0:
+        raise RuntimeError('Packaged storage scan failed')
     gui_test(ROOT / 'dist' / 'BreakCheck.exe', 'portable-gui')
     # A source launcher check must never prompt or install packages.
     run('source launcher', ['cmd.exe', '/d', '/c', 'Start-BreakCheck.cmd', '--check'])

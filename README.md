@@ -28,10 +28,13 @@ A local file safety assistant. Monitor project changes, detect previously known 
 
 **Repair a link:** Double-click a broken link in Overview or open Link repair. Check the suggested replacement or choose one manually, review the diff, then confirm. Repair history allows undo if the repaired file has not changed.
 
+**Explore storage:** Open Storage, select a folder or drive, and scan. Switch between folder, file-type and modification-age distributions; click folder bars to drill down. Review the largest files and filter candidates by size and time since modification. Double-click a file to open Impact analysis. Export JSON or cancel a scan at any time.
+
 ## Features
 
 - Safety Center with a persistent local index, change history and after-the-fact broken-link alerts.
 - Reference-aware SHA-256 duplicate finder; excludes hard links.
+- Metadata-only storage intelligence with folder drill-down, file type and age distributions, review filters and JSON export.
 - Opt-in local version history and integrity-checked copy-out recovery.
 - Previewed link repair and persistent undo for supported UTF-8 HTML and JSON relative paths.
 - Read-only delete, move and rename simulations.
@@ -66,6 +69,10 @@ Recovery is disabled by default. The separate `recovery.sqlite3` stores file con
 
 Only literal quoted relative HTML link attributes and relative JSON string values in UTF-8 files up to 4 MiB are supported. HTML base URLs, complex URLs, absolute paths, symlinks, hard-linked sources and other formats are not automatically repaired. Move hints are inferred from history and must be verified. JSON strings may have other meanings, so review the diff. Close external editors and other processes that write the source before applying or undoing: atomic replacement is not a filesystem compare-and-swap and may change metadata, ownership, ACLs or extended attributes. The separate private `repairs.sqlite3` journal saves original and repaired contents (unencrypted, 128 MiB content budget, 1,000 entries); no automatic pruning. Undo refuses changed files. The journal is not a substitute for independent backups.
 
+### Storage limits
+
+Storage uses a single metadata traversal (no file-content hashing or dependency parsing) and defaults to 500,000 directory entries; CLI limits can be set from 1 to 2,000,000. Protected, excluded, linked and other-volume entries are skipped and coverage is reported as partial. Logical sizes count each observed hard link and may differ from actual allocated space; volume free space is a separate OS measurement. Modification age is not last-access age. Size and age are review hints, not proof that a file is unused. Results are not an atomic snapshot. No cleanup is automatic.
+
 ## Linux / terminal sessions
 
 Python 3.10+ is required; Tk is not needed for terminal use. Starting with v0.5.0, published releases also include a single-file `BreakCheck.pyz` archive (run `python3 BreakCheck.pyz watch /path/to/project`). From the extracted source folder:
@@ -73,6 +80,7 @@ Python 3.10+ is required; Tk is not needed for terminal use. Starting with v0.5.
 ```sh
 python3 -m breakcheck watch /path/to/project
 python3 -m breakcheck duplicates /path/to/project
+python3 -m breakcheck storage /path/to/project --json
 python3 -m breakcheck recovery capture /path/to/project
 python3 -m breakcheck recovery list
 python3 -m breakcheck recovery restore 1 /path/to/new-file

@@ -83,6 +83,11 @@ def run_desktop(inspect=None, root=None, self_test=False, background=False):
                 journal.undo(ident)
                 if (folder / 'index.html').read_bytes() != plan.before:
                     raise RuntimeError('Repair undo failed')
+                from .storage import analyze_storage
+                storage_report = analyze_storage(folder)
+                app.storage.render(storage_report)
+                if storage_report.files != 3 or len(app.storage.largest.get_children()) != 3:
+                    raise RuntimeError('Storage workspace self-test failed')
                 for page in app.tabs.pages:
                     app.tabs.select(page)
                     app.update_idletasks()

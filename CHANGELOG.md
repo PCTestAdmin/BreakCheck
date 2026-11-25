@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.0
+
+- Storage Intelligence workspace with interactive folder drill-down, file-type and modification-age distributions.
+- Largest-file and configurable age/size review lists; direct handoff to Impact analysis.
+- Bounded single-pass metadata scanner with progress, cancellation, volume statistics and JSON export.
+- Headless storage command and six regression tests; expanded desktop and Windows/Linux CLI package smoke tests.
+
 ## 0.8.0
 
 - Smart Link Repair with historical move hints, exact diff preview, explicit confirmation and persistent undo.
