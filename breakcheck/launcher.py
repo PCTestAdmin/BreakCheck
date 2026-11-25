@@ -27,7 +27,8 @@ def run_desktop(inspect=None, root=None, self_test=False):
         app.withdraw()
         try:
             with tempfile.TemporaryDirectory() as directory:
-                folder = Path(directory).resolve()
+                folder = Path(directory).resolve() / 'project'
+                folder.mkdir()
                 asset = folder / 'asset.png'
                 asset.write_bytes(b'demo')
                 (folder / 'index.html').write_text('<img src="asset.png">', encoding='utf-8')
@@ -42,6 +43,16 @@ def run_desktop(inspect=None, root=None, self_test=False):
                 app.update_idletasks()
                 if len(report.direct) != 1 or len(app.tree.get_children()) != 1:
                     raise RuntimeError('Desktop self-test failed.')
+                from .safety import SafetyIndex, duplicates
+                state = SafetyIndex(Path(directory) / 'state' / 'safety.sqlite3')
+                (folder / 'copy.png').write_bytes(b'demo')
+                state.refresh(folder)
+                asset.rename(folder / 'moved.png')
+                app.safety.render_snapshot(folder, state.refresh(folder))
+                app.safety.render_duplicates(folder, duplicates(folder))
+                app.update_idletasks()
+                if len(app.safety.alerts.get_children()) != 1 or len(app.safety.dupes.get_children()) != 2:
+                    raise RuntimeError('Safety Center self-test failed.')
         finally:
             app.destroy()
         return 0
@@ -51,6 +62,7 @@ def run_desktop(inspect=None, root=None, self_test=False):
             app.root_path.set(str(scope))
         if target is not None:
             app.target.set(str(target))
+            app.tabs.select(app.impact_tab)
             app.status.set('Choose a wider scan folder if needed, then click Analyze impact. Only the selected scan folder is searched.')
     except (OSError, ValueError) as exc:
         app.status.set(str(exc))

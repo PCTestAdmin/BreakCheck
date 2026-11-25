@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "breakcheck"
-version = "0.3.2"
-description = "Know what breaks before you break it: read-only file dependency analysis."
+version = "0.4.0"
+description = "Local file safety assistant: monitor project changes, detect broken references and find duplicate files."
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}

@@ -9,6 +9,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from .core import scan, analyze
 from .views import InsightsView, apply_theme
+from .dashboard import SafetyCenter
 
 
 class App(tk.Tk):
@@ -65,9 +66,11 @@ class App(tk.Tk):
         self.summary = ttk.Label(self, text='No scan performed.', padding=(20, 8), font=('TkDefaultFont', 12, 'bold'))
         self.summary.grid(row=2, column=0, sticky='ew')
         tabs = ttk.Notebook(self)
+        self.tabs = tabs
         tabs.grid(row=3, column=0, sticky='nsew', padx=20, pady=8)
         results = ttk.Frame(tabs)
         tabs.add(results, text='Potential impact')
+        self.impact_tab = results
         results.columnconfigure(0, weight=1)
         results.rowconfigure(0, weight=1)
         self.tree = ttk.Treeview(results, columns=('level', 'source', 'reference', 'detail'), show='headings')
@@ -90,6 +93,7 @@ class App(tk.Tk):
         scroll.grid(row=0, column=1, sticky='ns')
         self.coverage.configure(yscrollcommand=scroll.set)
         self.insights = InsightsView(tabs)
+        self.safety = SafetyCenter(self, tabs, self_test)
         footer = ttk.Frame(self, padding=(20, 8, 20, 16))
         footer.grid(row=4, column=0, sticky='ew')
         footer.columnconfigure(0, weight=1)
@@ -124,6 +128,7 @@ class App(tk.Tk):
         if not root or not target or (operation != 'delete' and not dest):
             messagebox.showwarning('Missing path', 'Choose a scan folder, target and destination when required.')
             return
+        self.tabs.select(self.impact_tab)
         self.report = None
         self.insights.clear()
         self.coverage.configure(state='normal')

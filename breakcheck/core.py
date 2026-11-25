@@ -199,7 +199,13 @@ def scan(root: Path | str, max_files: int = 100_000) -> Scan:
         files.sort()
         for name in dirs[:]:
             p = Path(directory) / name
-            if name in SKIP_DIRS or p.is_symlink() or getattr(p, 'is_junction', lambda: False)():
+            try:
+                is_reparse = bool(getattr(p.lstat(), 'st_file_attributes', 0) & 0x400)
+            except OSError as exc:
+                warn_walk(exc)
+                dirs.remove(name)
+                continue
+            if name in SKIP_DIRS or p.is_symlink() or is_reparse or getattr(p, 'is_junction', lambda: False)():
                 dirs.remove(name)
                 result.skipped += 1
         for name in files:
@@ -210,7 +216,7 @@ def scan(root: Path | str, max_files: int = 100_000) -> Scan:
             path = Path(directory) / name
             try:
                 info = path.lstat()
-                if not stat.S_ISREG(info.st_mode):
+                if not stat.S_ISREG(info.st_mode) or getattr(info, 'st_file_attributes', 0) & 0x400:
                     result.skipped += 1
                     continue
                 result.inventory[path] = info.st_size

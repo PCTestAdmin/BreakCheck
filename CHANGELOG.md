@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0
+
+- Safety Center: opt-in periodic folder monitoring while the app is open.
+- Persistent SQLite snapshots and file activity history, including possible moves.
+- Alerts when previously observed dependencies disappear, with possible new location hints.
+- SHA-256 duplicate finder with a bounded read budget and hard-link exclusion.
+- Skip Windows reparse points in the dependency scanner.
+- Seven additional unit tests and an expanded desktop self-test.
+
 ## 0.3.2
 
 - Bound every Windows smoke-test process with a timeout and log each step.

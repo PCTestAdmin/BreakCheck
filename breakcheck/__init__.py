@@ -1,2 +1,2 @@
 """BreakCheck: inspect file dependencies before changing files."""
-__version__ = '0.3.2'
+__version__ = '0.4.0'

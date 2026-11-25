@@ -2,7 +2,7 @@
 
 **Know what breaks before you break it.**
 
-Find out which files depend on a file or folder before you delete, move, or rename it. BreakCheck runs locally and never modifies your scanned files.
+A local file safety assistant. Monitor project changes, detect previously known links that break after files move or disappear, find duplicate files, and check what may break before reorganizing a folder. BreakCheck never modifies scanned files.
 
 [![Download for Windows](https://img.shields.io/badge/Download%20for%20Windows-0078D4?style=for-the-badge&logo=windows)](https://github.com/PCTestAdmin/BreakCheck/archive/refs/heads/main.zip)
 
@@ -16,14 +16,16 @@ Find out which files depend on a file or folder before you delete, move, or rena
 
 ## How to use
 
-1. Select a folder to scan.
-2. Select the file or folder you want to delete, move or rename.
-3. Choose the operation and click **Analyze impact**.
+**Monitor a folder:** Select a project folder and click **Start monitoring** in the Safety Center. The first scan creates a baseline; subsequent checks run every 60 seconds after the previous check completes while the app is open. Previously known broken links and recent file changes appear in the dashboard. Stop at any time.
 
-Review the affected files, dependency graph and scan coverage before making changes. You can also enable the optional **Inspect with BreakCheck** File Explorer context menu during installation.
+**Find duplicates:** Click **Find duplicates** to compare file contents and list matching copies by group. Nothing is deleted.
+
+**Before moving or deleting:** Select a target, choose the operation and click **Analyze impact**. Review the results and coverage. Windows setup also offers an optional **Inspect with BreakCheck** Explorer context menu.
 
 ## Features
 
+- Safety Center with a persistent local index, change history and after-the-fact broken-link alerts.
+- Duplicate finder using SHA-256 content hashes; excludes hard links.
 - Read-only delete, move and rename simulations.
 - Direct and indirect dependency detection with an interactive graph.
 - Media files with no detected incoming references.
@@ -43,6 +45,10 @@ Review the affected files, dependency graph and scan coverage before making chan
 ## Limitations
 
 BreakCheck is a static analyzer, not a guarantee that deleting a file is safe. It detects supported, existing references within the selected scan folder. Dynamic links, unsupported formats and references outside that folder may be missed. Files listed as unreferenced may still be in use. Review warnings, scan trusted folders and keep backups.
+
+Monitoring is opt-in and only runs while the app is open. It does not intercept or prevent Windows file operations, back up files or repair links. It detects changes between snapshots, not every filesystem event; possible moves are inferred from matching metadata. Only previously observed references whose source metadata is unchanged are flagged as broken. The first scan cannot find historical breakage. Scans are capped at 100,000 files; duplicate hashing has a 4 GiB per-run budget. Reported duplicate sizes are logical file sizes, not guaranteed reclaimable disk space.
+
+The local SQLite database stores paths, file metadata, observed dependencies and up to 1,000 recent events per monitored folder (no file contents). On Windows it lives at `%LOCALAPPDATA%/BreakCheck/safety.sqlite3`; close the app before removing it to clear history. Choose project folders outside the database directory; scanning a folder that contains this directory is not supported for monitoring. No automatic startup, cloud upload or system-wide monitoring.
 
 ## Run from source
 
