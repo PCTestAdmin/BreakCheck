@@ -14,13 +14,17 @@ import threading
 import time
 
 from .core import SKIP_DIRS, inside
-from .safety import SafetyIndex, state_path, duplicates
+from .safety import SafetyIndex, state_path
+from .smart import smart_duplicates
+from .recovery import RecoveryStore, MIB
 
 
 @dataclass
 class Preferences:
     root: str = ''
     notifications: bool = True
+    backup: bool = False
+    quota_mib: int = 256
 
 
 def settings_path():
@@ -35,7 +39,10 @@ def read_preferences(path=None):
         return Preferences()
     if not isinstance(data, dict) or not isinstance(data.get('root', ''), str) or not isinstance(data.get('notifications', True), bool):
         raise ValueError('Invalid BreakCheck preferences.')
-    return Preferences(data.get('root', ''), data.get('notifications', True))
+    backup, quota = data.get('backup', False), data.get('quota_mib', 256)
+    if not isinstance(backup, bool) or type(quota) is not int or not 1 <= quota <= 4096:
+        raise ValueError('Invalid recovery preferences.')
+    return Preferences(data.get('root', ''), data.get('notifications', True), backup, quota)
 
 
 def write_json(path, data):
@@ -127,7 +134,7 @@ def snapshot_payload(root, snapshot, new):
 
 
 def run_watch(roots, interval=60, once=False, use_events=True, json_output=False,
-              stop=None, emit=None, index=None):
+              stop=None, emit=None, index=None, backup=False, quota_mib=256):
     """Run in the foreground (suitable for SSH, systemd, or a supervisor)."""
     stop = stop if stop is not None else threading.Event()
     index = index if index is not None else SafetyIndex()
@@ -150,6 +157,13 @@ def run_watch(roots, interval=60, once=False, use_events=True, json_output=False
                 print(f'  ALERT: {source} -> {target}', flush=True)
             for warning in payload['warnings']:
                 print(f'  WARNING: {warning}', flush=True)
+            if 'recovery' in payload:
+                rec = payload['recovery']
+                print(f'  Recovery: {rec["saved"]} saved, {rec["skipped"]} skipped; {rec["used"]}/{rec["quota"]} logical bytes', flush=True)
+                for warning in rec['warnings'] or []:
+                    print(f'  WARNING: {warning}', flush=True)
+            if 'recovery_error' in payload:
+                print(f'  Recovery error: {payload["recovery_error"]}', file=sys.stderr, flush=True)
     watches = {}
     last = {}
     previous = {}
@@ -168,7 +182,14 @@ def run_watch(roots, interval=60, once=False, use_events=True, json_output=False
                 try:
                     snapshot = index.refresh(root)
                     alerts = set(snapshot.alerts)
-                    output(snapshot_payload(root, snapshot, alerts - previous.get(root, set()) if snapshot.complete else set()))
+                    payload = snapshot_payload(root, snapshot, alerts - previous.get(root, set()) if snapshot.complete else set())
+                    if backup and snapshot.complete:
+                        try:
+                            payload['recovery'] = asdict(RecoveryStore().capture(root, quota_mib * MIB))
+                        except (OSError, ValueError, sqlite3.Error) as exc:
+                            payload['recovery_error'] = str(exc)
+                            failed = True
+                    output(payload)
                     if snapshot.complete:
                         previous[root] = alerts
                     else:
@@ -193,6 +214,19 @@ def add_commands(sub):
     watch.add_argument('--once', action='store_true', help='Take one snapshot and exit')
     watch.add_argument('--poll', action='store_true', help='Do not use optional OS file events')
     watch.add_argument('--json', action='store_true', help='Emit JSON lines')
+    watch.add_argument('--backup', action='store_true', help='Opt in to saving local file versions')
+    watch.add_argument('--quota-mib', type=int, choices=range(1,4097), metavar='1-4096', default=256)
+    rec = sub.add_parser('recovery', help='Capture, list or restore saved file versions')
+    actions = rec.add_subparsers(dest='action', required=True)
+    capture = actions.add_parser('capture')
+    capture.add_argument('folder', type=Path)
+    capture.add_argument('--quota-mib', type=int, choices=range(1,4097), metavar='1-4096', default=256)
+    listing = actions.add_parser('list')
+    listing.add_argument('--folder', type=Path)
+    listing.add_argument('--limit', type=int, default=1000)
+    restore = actions.add_parser('restore')
+    restore.add_argument('version', type=int)
+    restore.add_argument('destination', type=Path)
     dup = sub.add_parser('duplicates', help='Find identical file contents without a GUI')
     dup.add_argument('folder', type=Path)
     dup.add_argument('--json', action='store_true')
@@ -214,17 +248,26 @@ def dispatch(args):
                 save_preferences(prefs)
             print(json.dumps(asdict(prefs)))
             return 0
+        if args.command == 'recovery':
+            store = RecoveryStore()
+            if args.action == 'capture':
+                result = store.capture(args.folder, args.quota_mib * MIB)
+                print(json.dumps(asdict(result), indent=2))
+            elif args.action == 'list':
+                print(json.dumps(store.versions(args.folder, args.limit), indent=2))
+            else:
+                print(store.restore(args.version, args.destination))
+            return 0
         if args.command == 'duplicates':
-            warnings = []
-            groups, skipped = duplicates(args.folder, coverage=warnings)
+            groups, skipped, warnings, review = smart_duplicates(args.folder)
             payload = {'groups': [{'size': size, 'files': paths} for size, paths in groups],
-                       'extra_logical_bytes': sum(size*(len(paths)-1) for size,paths in groups), 'skipped': skipped, 'warnings': warnings}
+                       'extra_logical_bytes': sum(size*(len(paths)-1) for size,paths in groups), 'skipped': skipped, 'warnings': warnings, 'review': review}
             if args.json:
                 print(json.dumps(payload))
             else:
                 print(f'{len(groups)} groups; {payload["extra_logical_bytes"]} additional logical bytes; {skipped} skipped')
-                for size, paths in groups:
-                    print(f'{size} bytes: ' + ' | '.join(paths))
+                for row in review:
+                    print(f'Group {row["group"]}: {row["path"]} | {row["size"]} bytes | {row["review"]}')
                 for warning in warnings:
                     print(f'WARNING: {warning}')
             return 0
@@ -237,7 +280,7 @@ def dispatch(args):
         for sig in (signal.SIGINT, signal.SIGTERM):
             old[sig] = signal.signal(sig, lambda *_: stop.set())
         try:
-            return run_watch(roots, args.interval, args.once, not args.poll, args.json, stop)
+            return run_watch(roots, args.interval, args.once, not args.poll, args.json, stop, backup=args.backup, quota_mib=args.quota_mib)
         finally:
             for sig, handler in old.items():
                 signal.signal(sig, handler)

@@ -4,11 +4,14 @@ from __future__ import annotations
 import queue
 import threading
 import time
+from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
-from .safety import SafetyIndex, duplicates
+from .safety import SafetyIndex
+from .smart import smart_duplicates
+from .recovery import RecoveryStore, MIB
 from .agent import Preferences, read_preferences, save_preferences, validated_root, Wakeup
 from .tray import startup_supported, startup_enabled, set_startup
 
@@ -69,7 +72,7 @@ class SafetyCenter:
         panes.grid(row=5,column=0,sticky='nsew')
         self.alerts = self.table(panes,'Broken links',('Dependent file','Missing target','Possible new location'))
         self.history = self.table(panes,'Activity',('Time','Change','Path','Details'))
-        self.dupes = self.table(panes,'Duplicates',('Group','File','Size'))
+        self.dupes = self.table(panes,'Duplicates',('Group','File','Size','References','Review'))
         self.largest = self.table(panes,'Largest files',('File','Logical size'))
         self.warnings = self.table(panes,'Scan coverage',('Details',))
         settings = ttk.Frame(self.frame)
@@ -83,7 +86,7 @@ class SafetyCenter:
             except OSError:
                 pass
             ttk.Checkbutton(settings,text='Start with Windows',variable=self.autostart,command=self.update_startup).pack(side='left',padx=10)
-        ttk.Label(settings,text='Read-only • alerts after changes',style='Muted.TLabel').pack(side='right')
+        ttk.Label(settings,text='No automatic deletion',style='Muted.TLabel').pack(side='right')
         self.controls()
         if not self_test:
             app.after(150, self.poll)
@@ -131,6 +134,7 @@ class SafetyCenter:
         try:
             self.prefs = read_preferences()
             self.notifications.set(self.prefs.notifications)
+            self.app.recovery.sync_preferences()
             if self.prefs.root:
                 self.activate(validated_root(self.prefs.root))
         except (OSError, ValueError, RuntimeError) as exc:
@@ -138,7 +142,7 @@ class SafetyCenter:
 
     def update_notifications(self):
         try:
-            save_preferences(Preferences(self.prefs.root, self.notifications.get()))
+            save_preferences(replace(self.prefs, notifications=self.notifications.get()))
             self.prefs.notifications = self.notifications.get()
         except (OSError, ValueError) as exc:
             self.notifications.set(self.prefs.notifications)
@@ -167,7 +171,7 @@ class SafetyCenter:
         if root is not None:
             try:
                 root = validated_root(root)
-                prefs = Preferences(str(root), self.notifications.get())
+                prefs = replace(self.prefs, root=str(root), notifications=self.notifications.get())
                 save_preferences(prefs)
                 self.prefs = prefs
                 self.activate(root)
@@ -182,7 +186,7 @@ class SafetyCenter:
 
     def stop(self):
         try:
-            prefs = Preferences('', self.notifications.get())
+            prefs = replace(self.prefs, root='', notifications=self.notifications.get())
             save_preferences(prefs)
             self.prefs = prefs
         except (OSError, ValueError) as exc:
@@ -218,13 +222,21 @@ class SafetyCenter:
         self.busy = True
         self.controls()
         self.status.set(f'Checking {root}…')
+        backup = kind == 'snapshot' and self.active_root == root and self.prefs.backup
+        quota = self.prefs.quota_mib * MIB
         def worker():
             try:
                 if kind == 'snapshot':
                     value = SafetyIndex().refresh(root)
+                    if backup and value.complete:
+                        try:
+                            store = RecoveryStore()
+                            result = store.capture(root, quota)
+                            self.events.put((root, 'backup', (result, store.versions())))
+                        except Exception as exc:
+                            self.events.put((root, 'backup-error', str(exc)))
                 else:
-                    warnings = []
-                    value = (*duplicates(root, coverage=warnings), warnings)
+                    value = smart_duplicates(root)
                 self.events.put((root, kind, value))
             except Exception as exc:
                 self.events.put((root, 'error', str(exc)))
@@ -236,6 +248,13 @@ class SafetyCenter:
         except queue.Empty:
             pass
         else:
+            if kind in ('backup', 'backup-error'):
+                if kind == 'backup':
+                    self.app.recovery.render_capture(*value)
+                else:
+                    self.app.recovery.status.set(f'Automatic backup failed: {value}')
+                self.app.after(100, self.poll)
+                return
             self.busy = False
             self.controls()
             if kind == 'snapshot':
@@ -294,9 +313,12 @@ class SafetyCenter:
         groups, skipped = result[:2]
         warnings = result[2] if len(result) > 2 else []
         self.panes.select(self.dupes.master)
-        self.fill(self.dupes, [(i, p, f'{size:,}') for i,(size,paths) in enumerate(groups,1) for p in paths][:2000])
+        review = result[3] if len(result) > 3 else [{'group':i,'path':p,'size':size,'references':None,'review':'Review: coverage unavailable'} for i,(size,paths) in enumerate(groups,1) for p in paths]
+        self.fill(self.dupes, [(r['group'],r['path'],f'{r["size"]:,}', '—' if r['references'] is None else r['references'],r['review']) for r in review[:2000]])
         self.fill(self.warnings, [(warning,) for warning in warnings])
         extra = sum(size*(len(paths)-1) for size,paths in groups)
         self.status.set(f'{len(groups)} duplicate groups  •  {extra / 1048576:,.1f} MiB additional logical size  •  {skipped} skipped. Review before deleting.')
-        if warnings:
+        if skipped or any(not w.startswith('Dependency coverage:') for w in warnings):
             self.state.set('Limited duplicate coverage')
+        else:
+            self.state.set('Duplicate review ready')

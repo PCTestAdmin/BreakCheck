@@ -78,6 +78,16 @@ jobs:
           python release/BreakCheck.pyz --version
           BREAKCHECK_STATE_DIR="$RUNNER_TEMP/breakcheck-headless" python release/BreakCheck.pyz watch examples/demo --once --json --poll
           python release/BreakCheck.pyz duplicates examples/demo --json
+          export BREAKCHECK_STATE_DIR="$RUNNER_TEMP/breakcheck-recovery"
+          project="$RUNNER_TEMP/recovery-project"
+          mkdir -p "$project"
+          printf 'recovery test' > "$project/original.txt"
+          python release/BreakCheck.pyz recovery capture "$project"
+          version=$(python release/BreakCheck.pyz recovery list | python -c 'import json,sys; print(json.load(sys.stdin)[0]["id"])')
+          rm "$project/original.txt"
+          python release/BreakCheck.pyz recovery restore "$version" "$project/original.txt"
+          test "$(cat "$project/original.txt")" = 'recovery test'
+          if python release/BreakCheck.pyz recovery restore "$version" "$project/original.txt"; then exit 1; fi
           set +e
           python release/BreakCheck.pyz check examples/demo assets/logo.svg --json
           code=$?

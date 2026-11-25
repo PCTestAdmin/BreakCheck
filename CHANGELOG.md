@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.0
+
+- Smart Recovery workspace with manual or opt-in automatic bounded local content versions and no-overwrite integrity-checked restoration.
+- Reference-aware duplicate review, including incoming-reference counts, coverage and keep/review hints.
+- Headless recovery capture/list/restore commands and optional `watch --backup`.
+- Seven additional unit tests and expanded Windows GUI/CLI and Linux zipapp smoke tests, including no-overwrite recovery.
+
 ## 0.6.0
 
 - Redesigned desktop workspace with sidebar navigation, overview metrics, separated impact analysis, and a refined light/dark appearance.

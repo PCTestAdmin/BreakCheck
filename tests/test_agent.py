@@ -39,6 +39,15 @@ class AgentTests(unittest.TestCase):
         self.assertEqual(run_watch([self.project], once=True, emit=records.append), 0)
         self.assertEqual(records[-1]['new_alerts'], [('index.html','asset.png')])
 
+    def test_backup_requires_explicit_opt_in(self):
+        (self.project / 'file.txt').write_bytes(b'original')
+        records = []
+        self.assertEqual(run_watch([self.project], once=True, emit=records.append), 0)
+        self.assertFalse((self.state / 'recovery.sqlite3').exists())
+        self.assertEqual(run_watch([self.project], once=True, emit=records.append, backup=True), 0)
+        self.assertEqual(records[-1]['recovery']['saved'], 1)
+        self.assertTrue((self.state / 'recovery.sqlite3').is_file())
+
     def test_multiple_roots_and_error_status(self):
         other = self.base / 'other'
         other.mkdir()

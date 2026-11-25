@@ -29,7 +29,7 @@ def main(argv=None):
     from .agent import add_commands, dispatch
     add_commands(sub)
     args = parser.parse_args(argv)
-    if args.command in ('watch', 'monitor-config', 'duplicates'):
+    if args.command in ('watch', 'monitor-config', 'duplicates', 'recovery'):
         return dispatch(args)
     if args.command in (None, 'gui'):
         try:

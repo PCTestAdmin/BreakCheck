@@ -50,3 +50,7 @@ Do not modify the managed base OS or bypass restrictions. The administrator shou
 ## State and limitations
 
 Set `BREAKCHECK_STATE_DIR` to an absolute writable directory outside all monitored folders to relocate the SQLite index and preferences. The default is `$XDG_DATA_HOME/BreakCheck` or `~/.local/share/BreakCheck` on Linux. State includes local paths, metadata and observed references, not file contents. Monitor only trusted directories; do not run multiple monitors for the same root. Native events are hints, not guaranteed records, and snapshots detect only previously observed broken references. No pre-deletion interception, backup or automatic repair.
+
+## Optional file recovery
+
+Use `watch /path/to/project --backup --quota-mib 256` to explicitly opt in to automatic file versions for that terminal process. Or use `recovery capture /path/to/project`, `recovery list`, and `recovery restore VERSION /path/to/new-file`. All commands also work with `python3 BreakCheck.pyz`. The recovery database contains unencrypted file content. It has bounded content limits; see the [README](../README.md#recovery-limits). Existing files are never overwritten. No automatic deletion or pruning.

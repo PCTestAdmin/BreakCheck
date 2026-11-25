@@ -13,7 +13,7 @@ class Pages(ttk.Frame):
         self.nav = ttk.Frame(self.sidebar, style='Sidebar.TFrame')
         ttk.Label(self.sidebar, text='WORKSPACE', style='SidebarCaption.TLabel').pack(anchor='w', padx=10, pady=(0,12))
         self.nav.pack(fill='x')
-        ttk.Label(self.sidebar, text='LOCAL  /  READ-ONLY', style='SidebarCaption.TLabel').pack(side='bottom', anchor='w', padx=10, pady=8)
+        ttk.Label(self.sidebar, text='LOCAL  /  PRIVATE', style='SidebarCaption.TLabel').pack(side='bottom', anchor='w', padx=10, pady=8)
         self.pages = []
         self.buttons = {}
         self.labels = {}

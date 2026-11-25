@@ -94,6 +94,17 @@ def main():
     headless = run('packaged headless snapshot', [cli, 'watch', 'examples/demo', '--once', '--json', '--poll'], capture=True, env=headless_env)
     if json.loads(headless)['files'] < 1:
         raise RuntimeError('Packaged headless snapshot failed')
+    with tempfile.TemporaryDirectory(prefix='BreakCheck Recovery ') as tmp:
+        project = Path(tmp).resolve()
+        original = project / 'original.txt'
+        original.write_bytes(b'recovery smoke test')
+        run('packaged recovery capture', [cli, 'recovery', 'capture', project], capture=True, env=headless_env)
+        rows = json.loads(run('packaged recovery list', [cli, 'recovery', 'list', '--folder', project], capture=True, env=headless_env))
+        original.unlink()
+        run('packaged recovery restore', [cli, 'recovery', 'restore', rows[0]['id'], original], env=headless_env)
+        if original.read_bytes() != b'recovery smoke test':
+            raise RuntimeError('Packaged recovery restore mismatch')
+        run('packaged recovery no overwrite', [cli, 'recovery', 'restore', rows[0]['id'], original], expected=1, env=headless_env)
     gui_test(ROOT / 'dist' / 'BreakCheck.exe', 'portable-gui')
     # A source launcher check must never prompt or install packages.
     run('source launcher', ['cmd.exe', '/d', '/c', 'Start-BreakCheck.cmd', '--check'])

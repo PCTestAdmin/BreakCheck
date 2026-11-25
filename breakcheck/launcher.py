@@ -63,7 +63,14 @@ def run_desktop(inspect=None, root=None, self_test=False, background=False):
                 state.refresh(folder)
                 asset.rename(folder / 'moved.png')
                 app.safety.render_snapshot(folder, state.refresh(folder))
-                app.safety.render_duplicates(folder, duplicates(folder))
+                from .smart import smart_duplicates
+                from .recovery import RecoveryStore
+                app.safety.render_duplicates(folder, smart_duplicates(folder))
+                vault = RecoveryStore(Path(directory) / 'state' / 'recovery.sqlite3')
+                capture = vault.capture(folder)
+                app.recovery.render_capture(capture, vault.versions())
+                if capture.saved != 3 or len(app.recovery.tree.get_children()) != 3:
+                    raise RuntimeError('Recovery workspace self-test failed')
                 for page in app.tabs.pages:
                     app.tabs.select(page)
                     app.update_idletasks()
