@@ -4,17 +4,15 @@
 
 Find out which files depend on a file or folder before you delete, move, or rename it. BreakCheck runs locally and never modifies your scanned files.
 
-[![Download for Windows](https://img.shields.io/badge/Download%20for%20Windows-Setup.exe-0078D4?style=for-the-badge&logo=windows)](https://github.com/PCTestAdmin/BreakCheck/releases/latest/download/BreakCheck-Setup.exe)
+[![Download for Windows](https://img.shields.io/badge/Download%20for%20Windows-0078D4?style=for-the-badge&logo=windows)](https://github.com/PCTestAdmin/BreakCheck/archive/refs/heads/main.zip)
 
-[Portable ZIP](https://github.com/PCTestAdmin/BreakCheck/releases/latest/download/BreakCheck-Portable.zip) · [All releases](https://github.com/PCTestAdmin/BreakCheck/releases)
+[Windows installer releases](https://github.com/PCTestAdmin/BreakCheck/releases) · [Build status](https://github.com/PCTestAdmin/BreakCheck/actions/workflows/windows.yml)
 
 ## Installation
 
-**Windows 10/11 (64-bit):** Download and run the installer. No Python or administrator rights required. For the portable version, extract the ZIP and open `BreakCheck.exe`.
+**Available now — Windows:** Download the ZIP above, extract it and double-click `Start-BreakCheck.cmd`. It detects Python or offers to install it.
 
-If the installer is not available yet, [download the source ZIP](https://github.com/PCTestAdmin/BreakCheck/archive/refs/heads/main.zip), extract it and double-click `Start-BreakCheck.cmd`. The launcher detects Python or offers to install it.
-
-Windows binaries are unsigned. [Checksums](https://github.com/PCTestAdmin/BreakCheck/releases/latest/download/SHA256SUMS.txt) are included with published packages.
+**Standalone installer:** When a Windows release is published, download `BreakCheck-Setup.exe` from [Releases](https://github.com/PCTestAdmin/BreakCheck/releases). No separate Python installation is needed. The portable package is also published there. Windows binaries are unsigned.
 
 ## How to use
 
