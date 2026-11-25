@@ -25,6 +25,16 @@ Before deleting a shared asset, renaming a file, or reorganizing a project folde
 - JSON export and command-line interface for scripting.
 - Bounded text and Office relationship reads; no macros or document code executed.
 
+## Windows downloads
+
+Get the installer or portable ZIP from [GitHub Releases](https://github.com/PCTestAdmin/BreakCheck/releases) after the Windows package workflow succeeds. Both include a standalone desktop executable and console CLI, with Python and Tk bundled. Windows 10 (1809+) and Windows 11 x64 are the target platforms.
+
+- **Installer:** Run the setup EXE. Installs per user without administrator privileges, adds Start menu shortcuts, and offers optional desktop and File Explorer shortcuts. Uninstall from Settings > Apps.
+- **Portable:** Extract the ZIP and double-click `BreakCheck.exe`. No installation or registry changes are required. Run `BreakCheckCLI.exe --help` from PowerShell to use the CLI.
+- **Explorer:** Enable the optional integration during setup, then right-click a file or folder and choose **Inspect with BreakCheck** (on Windows 11, look under **Show more options**). The selected target is prefilled; choose a wider scan folder if necessary and click **Analyze impact**. Nothing is scanned automatically.
+
+Binaries are unsigned and may produce a Windows SmartScreen warning. Verify the download's SHA-256 against `SHA256SUMS.txt` and follow your organization's security policy. If no release is available, check [Windows package builds](https://github.com/PCTestAdmin/BreakCheck/actions/workflows/windows.yml) or run from source below.
+
 ## Quick start
 
 Install Python 3.10 or newer. The desktop app also requires Tk, included in typical Windows and macOS Python installations; on Debian/Ubuntu install `python3-tk` if needed.
@@ -87,11 +97,13 @@ python -m unittest discover -s tests -v
 python -m compileall -q breakcheck
 ```
 
-The GitHub Actions workflow is configured to run tests on Windows, macOS, and Linux. It has not been run until this project is pushed to GitHub.
+GitHub Actions runs tests on Windows, macOS, and Linux. The Windows package workflow builds both executables with PyInstaller and compiles a per-user installer with Inno Setup 6. It smoke-tests the desktop, CLI, installation, Explorer registration and uninstallation before publishing a new version on `main`. Existing versioned releases are not overwritten.
+
+To build on a Windows x64 machine with Python 3.12 and Inno Setup 6 installed, run `./packaging/build-windows.ps1` in PowerShell. Outputs are written to `release/`. On a disposable test machine, run `./packaging/smoke-windows.ps1` to validate installation and removal. See [packaging/README.md](packaging/README.md).
 
 ## Roadmap
 
-- [ ] Windows Explorer context menu and standalone installer
+- [x] Windows Explorer context menu and standalone installer build pipeline (v0.2.0)
 - [ ] More format adapters: Blender, Adobe project files, Windows shortcuts
 - [ ] Persistent index, incremental scans, and scan cancellation
 - [ ] Dependency graph visualization and improved parser coverage

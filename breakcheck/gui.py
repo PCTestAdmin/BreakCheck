@@ -100,7 +100,9 @@ class App(tk.Tk):
         value = filedialog.askdirectory()
         if value:
             self.root_path.set(value)
-            self.target.set('')
+            selected = self.target.get().strip()
+            if selected and not Path(selected).resolve().is_relative_to(Path(value).resolve()):
+                self.target.set('')
 
     def choose_target(self, folder):
         options = {'initialdir': self.root_path.get() or str(Path.home())}

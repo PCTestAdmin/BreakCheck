@@ -11,7 +11,9 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description='Know what breaks before you break it. Read-only simulation.')
     parser.add_argument('--version', action='version', version=__version__)
     sub = parser.add_subparsers(dest='command')
-    sub.add_parser('gui', help='Open desktop interface')
+    gui = sub.add_parser('gui', help='Open desktop interface')
+    gui.add_argument('--inspect', help='Preselect a file or folder')
+    gui.add_argument('--root', help='Initial scan folder')
     check = sub.add_parser('check', help='Scan and simulate a change')
     check.add_argument('root', type=Path)
     check.add_argument('target', type=Path, help='Target path, relative to root or absolute')
@@ -22,8 +24,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.command in (None, 'gui'):
         try:
-            from .gui import launch
-            launch()
+            from .launcher import run_desktop
+            return run_desktop(getattr(args, 'inspect', None), getattr(args, 'root', None))
         except Exception as exc:
             print(f'Unable to launch desktop interface: {exc}', file=sys.stderr)
             return 1

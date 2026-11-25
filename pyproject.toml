@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "breakcheck"
-version = "0.1.0"
+version = "0.2.0"
 description = "Know what breaks before you break it: read-only file dependency analysis."
 readme = "README.md"
 requires-python = ">=3.10"
